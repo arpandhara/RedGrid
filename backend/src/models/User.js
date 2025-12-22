@@ -4,6 +4,7 @@ const userSchema = new mongoose.Schema({
   clerkId: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   
+  // Role handling
   role: { 
     type: String, 
     enum: ['donor', 'organization', 'hospital', 'admin'], 
@@ -21,10 +22,11 @@ const userSchema = new mongoose.Schema({
     default: null 
   },
   
-  // For Organizations/Hospitals
-  organizationName: String,
+  // Specific Fields
+  organizationName: String, // For Event Organizers
+  hospitalName: String,     // For Hospitals
   
-  // Common Location Data
+  // Location Data
   location: {
     address: String,
     city: String,

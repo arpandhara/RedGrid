@@ -1,60 +1,191 @@
-import React from 'react';
-import { HeartPulse, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useSignUp, useSignIn } from "@clerk/clerk-react";
+import { User, Calendar, Stethoscope } from 'lucide-react'; // Assuming you have lucide-react or similar icons
 
-const AuthLayout = ({ children, title, subtitle }) => {
+const AuthPage = () => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [activeTab, setActiveTab] = useState('individual'); // 'individual', 'event', 'hospital'
+  
+  // Clerk Hooks
+  const { isLoaded: isLoadedSignUp, signUp, setActive: setActiveSignUp } = useSignUp();
+  const { isLoaded: isLoadedSignIn, signIn, setActive: setActiveSignIn } = useSignIn();
+
+  // Form State
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    firstName: "",
+    lastName: "",
+    hospitalName: "", // Specific to Hospital
+    orgName: ""       // Specific to Event
+  });
+
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (isLogin) {
+      // HANDLE LOGIN LOGIC HERE
+      if (!isLoadedSignIn) return;
+      try {
+        const result = await signIn.create({
+          identifier: formData.email,
+          password: formData.password,
+        });
+        if (result.status === "complete") {
+          await setActiveSignIn({ session: result.createdSessionId });
+        }
+      } catch (err) {
+        console.error("Login error", err);
+      }
+    } else {
+      // HANDLE SIGNUP LOGIC
+      if (!isLoadedSignUp) return;
+      try {
+        // We pass the role in 'unsafe_metadata' so the Webhook can see it
+        const result = await signUp.create({
+          emailAddress: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          unsafeMetadata: {
+            role: activeTab, // This sends 'individual', 'event', or 'hospital' to backend
+            organization: activeTab === 'event' ? formData.orgName : null,
+            hospitalName: activeTab === 'hospital' ? formData.hospitalName : null
+          }
+        });
+        
+        // Prepare for email verification (omitted for brevity, usually involves verifyEmail step)
+        if (result.status === "complete") {
+            await setActiveSignUp({ session: result.createdSessionId });
+        } else {
+            // Navigate to verification code step
+            console.log("Next step: verify email");
+        }
+
+      } catch (err) {
+        console.error("Signup error", err);
+      }
+    }
+  };
+
   return (
-    <div className="flex min-h-screen bg-white dark:bg-black transition-colors duration-300">
-      {/* LEFT SIDE: Artistic/Image Section */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-black items-center justify-center overflow-hidden">
-        {/* Background Image with Overlay */}
-        <img 
-          src="https://images.unsplash.com/photo-1615461066841-6116e61058f4?q=80&w=1000&auto=format&fit=crop" 
-          alt="Blood Donation" 
-          className="absolute inset-0 w-full h-full object-cover opacity-60"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
         
-        {/* Text Content over Image */}
-        <div className="relative z-10 p-12 text-white max-w-lg">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-red-600 rounded-2xl shadow-lg shadow-red-900/50">
-                <HeartPulse className="w-8 h-8 text-white" />
-            </div>
-            <span className="text-3xl font-bold tracking-wider">RedGrid</span>
-          </div>
-          <h1 className="text-5xl font-bold leading-tight mb-6">
-            Every drop is a <span className="text-red-500">story of life.</span>
-          </h1>
-          <p className="text-lg text-gray-300 leading-relaxed">
-            Join a community of heroes. Your contribution today becomes someone's heartbeat tomorrow.
-          </p>
+        {/* Header Section */}
+        <div className="bg-slate-900 p-8 text-center">
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+          <p className="text-slate-400">Please access your account below</p>
         </div>
-      </div>
 
-      {/* RIGHT SIDE: Form Section */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 relative">
-        
-        {/* Back to Home Button */}
-        <Link to="/" className="absolute top-8 left-8 flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-medium">Back to Home</span>
-        </Link>
+        {/* Custom Tabs */}
+        <div className="flex border-b border-gray-200">
+          <button 
+            onClick={() => setActiveTab('individual')}
+            className={`flex-1 py-4 text-sm font-medium flex justify-center items-center gap-2 transition-all ${activeTab === 'individual' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <User size={18} /> Individual
+          </button>
+          <button 
+            onClick={() => setActiveTab('event')}
+            className={`flex-1 py-4 text-sm font-medium flex justify-center items-center gap-2 transition-all ${activeTab === 'event' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Calendar size={18} /> Event
+          </button>
+          <button 
+            onClick={() => setActiveTab('hospital')}
+            className={`flex-1 py-4 text-sm font-medium flex justify-center items-center gap-2 transition-all ${activeTab === 'hospital' ? 'border-b-2 border-red-500 text-red-500' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Stethoscope size={18} /> Hospital
+          </button>
+        </div>
 
-        <div className="w-full max-w-md space-y-8">
-            <div className="text-center lg:text-left">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{title}</h2>
-                <p className="mt-2 text-gray-500 dark:text-gray-400">{subtitle}</p>
-            </div>
+        {/* Form Section */}
+        <div className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
             
-            {/* The Clerk Component will be injected here */}
-            <div className="flex justify-center lg:justify-start">
-                {children}
+            {/* Common Fields */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <input 
+                name="email"
+                type="email" 
+                value={formData.email}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all"
+                placeholder="you@example.com"
+              />
             </div>
+
+            {/* Role Specific Fields (Only show on SignUp) */}
+            {!isLogin && activeTab === 'event' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name</label>
+                <input 
+                  name="orgName"
+                  type="text" 
+                  value={formData.orgName}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 outline-none"
+                  placeholder="Event Organizer Co."
+                />
+              </div>
+            )}
+
+            {!isLogin && activeTab === 'hospital' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Hospital / Clinic Name</label>
+                <input 
+                  name="hospitalName"
+                  type="text" 
+                  value={formData.hospitalName}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                  placeholder="City General Hospital"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input 
+                name="password"
+                type="password" 
+                value={formData.password}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              className={`w-full text-white font-bold py-3 rounded-lg transition-colors mt-6
+                ${activeTab === 'individual' ? 'bg-slate-900 hover:bg-slate-800' : ''}
+                ${activeTab === 'event' ? 'bg-indigo-600 hover:bg-indigo-700' : ''}
+                ${activeTab === 'hospital' ? 'bg-red-500 hover:bg-red-600' : ''}
+              `}
+            >
+              {isLogin ? `Sign In as ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}` : 'Create Account'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button 
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-sm text-gray-600 hover:underline"
+            >
+              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default AuthLayout;
+export default AuthPage;

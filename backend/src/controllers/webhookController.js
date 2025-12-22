@@ -1,20 +1,17 @@
 import { Webhook } from 'svix';
 import User from '../models/User.js';
 
-// @desc    Handle Clerk Webhooks (Sync User to DB)
-// @route   POST /api/webhooks/clerk
 export const clerkWebhook = async (req, res) => {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
   if (!SIGNING_SECRET) {
-    console.error('Error: CLERK_WEBHOOK_SECRET is missing');
     return res.status(500).json({ success: false, message: 'Server Configuration Error' });
   }
 
   // Verify Webhook Signature
   const wh = new Webhook(SIGNING_SECRET);
   const headers = req.headers;
-  const payload = req.body; // Buffer from express.raw
+  const payload = req.body; 
 
   let evt;
   try {
@@ -24,47 +21,51 @@ export const clerkWebhook = async (req, res) => {
       "svix-signature": headers["svix-signature"]
     });
   } catch (err) {
-    console.error('Webhook Verification Failed:', err.message);
     return res.status(400).json({ success: false, message: 'Webhook Verification Failed' });
   }
 
   const { id } = evt.data;
   const eventType = evt.type;
 
-  console.log(`Webhook received: ${eventType}`);
-
   try {
-    // 1. Create User
     if (eventType === 'user.created') {
-      const { email_addresses, first_name, last_name } = evt.data;
+      const { email_addresses, first_name, last_name, unsafe_metadata } = evt.data;
+      
+      // EXTRACT ROLE AND METADATA
+      const role = unsafe_metadata?.role || 'donor';
+      const organizationName = unsafe_metadata?.organizationName || null;
+      const hospitalName = unsafe_metadata?.hospitalName || null;
+
       await User.create({
         clerkId: id,
         email: email_addresses[0].email_address,
         firstName: first_name,
         lastName: last_name,
+        role: role,
+        organizationName: organizationName,
+        hospitalName: hospitalName,
         isOnboarded: false,
       });
-      console.log(`User ${id} created in MongoDB`);
+      console.log(`User ${id} created as ${role}`);
     }
 
-    // 2. Update User (New Improvement)
     if (eventType === 'user.updated') {
-      const { email_addresses, first_name, last_name } = evt.data;
-      await User.findOneAndUpdate(
-        { clerkId: id },
-        {
-          email: email_addresses[0].email_address,
-          firstName: first_name,
-          lastName: last_name,
-        }
-      );
-      console.log(`User ${id} updated in MongoDB`);
+      const { email_addresses, first_name, last_name, unsafe_metadata } = evt.data;
+      
+      const updateData = {
+        email: email_addresses[0].email_address,
+        firstName: first_name,
+        lastName: last_name,
+      };
+
+      // Update role if changed in Clerk dashboard
+      if (unsafe_metadata?.role) updateData.role = unsafe_metadata.role;
+
+      await User.findOneAndUpdate({ clerkId: id }, updateData);
     }
 
-    // 3. Delete User
     if (eventType === 'user.deleted') {
       await User.findOneAndDelete({ clerkId: id });
-      console.log(`User ${id} deleted from MongoDB`);
     }
 
     res.status(200).json({ success: true, message: 'Webhook processed' });

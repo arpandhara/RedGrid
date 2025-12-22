@@ -1,38 +1,26 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import mongoSanitize from 'express-mongo-sanitize';
-
-// Route Imports
-import webhookRoutes from './routes/webhookRoutes.js';
-import authRoutes from './routes/authRoutes.js';
-import userRoutes from './routes/userRoutes.js';
+import express from "express";
+import cors from "cors";
+import webhookRoutes from "./routes/webhookRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
 
-// --- Global Security Middleware ---
 app.use(cors());
-app.use(helmet());
-app.use(mongoSanitize());
 
+// CRITICAL FIX: Webhook route must be defined BEFORE standard express.json()
+// and must use express.raw({ type: 'application/json' })
+app.use(
+  "/api/webhooks", 
+  express.raw({ type: "application/json" }), 
+  webhookRoutes
+);
 
-app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+// Standard middleware for the rest of the app
+app.use(express.json());
 
-
-app.use(express.json()); 
-app.use(express.urlencoded({ extended: true }));
-
-// ---  API Routes ---
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-
-// --- Global Error Handler ---
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    success: false, 
-    message: err.message || 'Internal Server Error' 
-  });
-});
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 export default app;
