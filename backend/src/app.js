@@ -6,6 +6,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 // Route Imports
 import webhookRoutes from './routes/webhookRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // ---  API Routes ---
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {

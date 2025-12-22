@@ -1,9 +1,8 @@
 import express from 'express';
-import { clerkWebhook } from '../controllers/authController.js';
+import { clerkWebhook } from '../controllers/webhookController.js';
 
 const router = express.Router();
 
-// Logic is in the controller
 router.post('/clerk', clerkWebhook);
 
 export default router;
