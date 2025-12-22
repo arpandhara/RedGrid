@@ -3,18 +3,26 @@ import cors from 'cors';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
 
+// Route Imports
+import webhookRoutes from './routes/webhookRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+
 const app = express();
 
+// --- Global Security Middleware ---
 app.use(cors());
 app.use(helmet());
 app.use(mongoSanitize());
 
-// 2. Standard Parsers
+
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
+
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
 
-// --- Routes ---
-
+// ---  API Routes ---
+app.use('/api/auth', authRoutes);
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
