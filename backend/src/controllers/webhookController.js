@@ -1,5 +1,6 @@
 import { Webhook } from 'svix';
 import User from '../models/User.js';
+import { sendWelcomeEmail } from '../utils/emailService.js'; // Import the service
 
 export const clerkWebhook = async (req, res) => {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -28,17 +29,20 @@ export const clerkWebhook = async (req, res) => {
   const eventType = evt.type;
 
   try {
+    // --- HANDLE USER CREATION ---
     if (eventType === 'user.created') {
       const { email_addresses, first_name, last_name, unsafe_metadata } = evt.data;
       
-      // EXTRACT ROLE AND METADATA
+      const email = email_addresses[0].email_address;
+      const firstName = first_name || 'User';
       const role = unsafe_metadata?.role || 'donor';
       const organizationName = unsafe_metadata?.organizationName || null;
       const hospitalName = unsafe_metadata?.hospitalName || null;
 
+      // 1. Create User in Database
       await User.create({
         clerkId: id,
-        email: email_addresses[0].email_address,
+        email: email,
         firstName: first_name,
         lastName: last_name,
         role: role,
@@ -47,8 +51,13 @@ export const clerkWebhook = async (req, res) => {
         isOnboarded: false,
       });
       console.log(`User ${id} created as ${role}`);
+
+      // 2. Send Welcome Email
+      // We don't await this so it doesn't block the webhook response
+      sendWelcomeEmail(email, firstName, role);
     }
 
+    // --- HANDLE USER UPDATE ---
     if (eventType === 'user.updated') {
       const { email_addresses, first_name, last_name, unsafe_metadata } = evt.data;
       
@@ -58,12 +67,12 @@ export const clerkWebhook = async (req, res) => {
         lastName: last_name,
       };
 
-      // Update role if changed in Clerk dashboard
       if (unsafe_metadata?.role) updateData.role = unsafe_metadata.role;
 
       await User.findOneAndUpdate({ clerkId: id }, updateData);
     }
 
+    // --- HANDLE USER DELETION ---
     if (eventType === 'user.deleted') {
       await User.findOneAndDelete({ clerkId: id });
     }

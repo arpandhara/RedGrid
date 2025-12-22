@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import useAuthStore from './store/useAuthStore';
+import { Loader } from 'lucide-react';
 
 // Layouts
 import Navbar from './components/layout/Navbar';
@@ -11,21 +12,39 @@ import Navbar from './components/layout/Navbar';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 
-// Dashboard Placeholders (Create these files as well)
+// Dashboard Placeholders
 import DonorDashboard from './pages/donor/DonorDashboard';
 import HospitalDashboard from './pages/hospital/HospitalDashboard';
 import OrgDashboard from './pages/org/OrgDashboard';
-import CustomAuth from './components/CustomAuth';
 
-// Placeholder Landing
-const LandingPage = () => (
-  <div className="min-h-screen pt-20 flex flex-col items-center justify-center text-center px-4">
-    <h1 className="text-4xl font-bold mb-4">Welcome to RedGrid</h1>
-    <p className="text-gray-600 dark:text-gray-400">Connecting donors, hospitals, and organizations.</p>
-  </div>
-);
+// --- COMPONENTS ---
 
-// Auth Wrapper to sync Clerk with Zustand
+// 1. Root Component: The "Traffic Controller"
+// If logged in -> Go to Dashboard. If logged out -> Go to Register.
+const Root = () => {
+  const { isSignedIn, user, isLoaded } = useUser();
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
+        <Loader className="w-8 h-8 animate-spin text-red-600" />
+      </div>
+    );
+  }
+
+  if (isSignedIn) {
+    const role = user?.unsafeMetadata?.role;
+    // Intelligent routing based on role
+    if (role === 'hospital') return <Navigate to="/hospital/dashboard" replace />;
+    if (role === 'organization') return <Navigate to="/org/dashboard" replace />;
+    return <Navigate to="/donor/dashboard" replace />;
+  }
+
+  // DEFAULT ENTRY POINT: Register Page
+  return <Navigate to="/register" replace />;
+};
+
+// 2. Auth Wrapper: Syncs Clerk state with your Zustand store
 const AuthWrapper = ({ children }) => {
   const { isSignedIn, getToken } = useAuth();
   const { checkUser } = useAuthStore();
@@ -43,25 +62,38 @@ const AuthWrapper = ({ children }) => {
   return children;
 };
 
+// 3. Main Layout: Only for pages that NEED the Navbar (Dashboards)
+const MainLayout = () => (
+  <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
+    <Navbar />
+    <Outlet />
+  </div>
+);
+
+// --- MAIN APP ---
+
 function App() {
   return (
     <BrowserRouter>
       <AuthWrapper>
-        <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            
-            {/* Auth Routes */}
-            <Route path="/login/*" element={<Login />} />
-            <Route path="/register/*" element={<Register />} />
-            
-            {/* Protected Routes (Add ProtectedRoute logic here later) */}
+        <Routes>
+          {/* ENTRY POINT: Redirects to Register or Dashboard */}
+          <Route path="/" element={<Root />} />
+
+          {/* AUTH ROUTES (Full Screen, No Navbar) */}
+          <Route path="/register/*" element={<Register />} />
+          <Route path="/login/*" element={<Login />} />
+          
+          {/* Clerk OAuth Callback */}
+          <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
+
+          {/* PROTECTED DASHBOARD ROUTES (With Navbar) */}
+          <Route element={<MainLayout />}>
             <Route path="/donor/dashboard" element={<DonorDashboard />} />
             <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
             <Route path="/org/dashboard" element={<OrgDashboard />} />
-          </Routes>
-        </div>
+          </Route>
+        </Routes>
       </AuthWrapper>
     </BrowserRouter>
   );
