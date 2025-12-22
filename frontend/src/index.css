@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+/* 1. Define the Dark Mode Strategy 
+  This overrides the default (system preference) to use the class ".dark" instead 
+*/
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 2. Define Your Custom Colors 
+  Tailwind v4 uses native CSS variables for the theme.
+*/
+@theme {
+  --color-primary: #E63946;  /* Your Blood Red */
+  --color-dark: #1a1a1a;     /* Deep Black/Grey */
+  --color-light: #f3f4f6;    /* Soft White */
+}
+
+/* 3. Global Styles
+*/
+body {
+  @apply bg-light text-dark transition-colors duration-300;
+}
+
+/* Dark mode overrides for body */
+.dark body {
+  @apply bg-gray-950 text-white;
+}
