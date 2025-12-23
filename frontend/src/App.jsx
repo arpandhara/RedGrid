@@ -8,6 +8,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Layouts
 import Navbar from './components/layout/Navbar';
+import PublicRoute from './components/PublicRoute'; // <--- IMPORT THIS
 
 // Auth Pages
 import Login from './pages/auth/Login';
@@ -77,10 +78,25 @@ function App() {
           {/* Root Entry */}
           <Route path="/" element={<Root />} />
 
-          {/* Auth Routes */}
-          <Route path="/register/*" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/login/*" element={<Login />} />
+          {/* --- PUBLIC ROUTES (Wrapped) --- */}
+          <Route path="/register/*" element={
+            <PublicRoute>
+              <Register />
+            </PublicRoute>
+          } />
+          
+          <Route path="/login/*" element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } />
+          
+          <Route path="/forgot-password" element={
+            <PublicRoute>
+              <ForgotPassword />
+            </PublicRoute>
+          } />
+
           <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
 
           {/* Protected Dashboards */}
@@ -90,7 +106,6 @@ function App() {
             <Route path="/org/dashboard" element={<OrgDashboard />} />
           </Route>
 
-          {/* 2. Use the imported NotFound component */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthWrapper>
