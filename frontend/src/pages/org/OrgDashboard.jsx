@@ -2,7 +2,7 @@ import React from 'react';
 import useAuthStore from '../../store/useAuthStore';
 import OnboardingWizard from '../../components/onboarding/OnboardingWizard';
 
-const DonorDashboard = () => {
+const OrgDashboard = () => {
   const { user } = useAuthStore();
 
   return (
@@ -18,4 +18,4 @@ const DonorDashboard = () => {
   );
 };
 
-export default DonorDashboard;
+export default OrgDashboard;
