@@ -25,7 +25,7 @@ const ForgotPassword = () => {
   useGSAP(() => {
     const tl = gsap.timeline();
 
-    // 1. Image Zoom & Fade In
+    // Image Zoom & Fade In
     if (imageRef.current) {
         tl.from(imageRef.current, {
             scale: 1.1,
@@ -35,7 +35,7 @@ const ForgotPassword = () => {
         }, 0);
     }
 
-    // 2. Sidebar Content Stagger (Left Panel)
+    //Sidebar Content Stagger (Left Panel)
     tl.from('.sidebar-content', {
         y: 20,
         opacity: 0,
@@ -44,7 +44,7 @@ const ForgotPassword = () => {
         ease: "power2.out"
     }, 0.3);
 
-    // 3. Form Elements Stagger (Right Panel)
+    // Form Elements Stagger (Right Panel)
     tl.from('.form-element', {
         x: 30,
         opacity: 0,
