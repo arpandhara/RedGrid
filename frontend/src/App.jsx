@@ -12,13 +12,12 @@ import Navbar from './components/layout/Navbar';
 // Auth Pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 
 // Dashboard Placeholders
 import DonorDashboard from './pages/donor/DonorDashboard';
 import HospitalDashboard from './pages/hospital/HospitalDashboard';
 import OrgDashboard from './pages/org/OrgDashboard';
-
-// 1. Import the new Professional 404 Page
 import NotFound from './pages/NotFound';
 
 // --- COMPONENTS ---
@@ -80,6 +79,7 @@ function App() {
 
           {/* Auth Routes */}
           <Route path="/register/*" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/login/*" element={<Login />} />
           <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
 

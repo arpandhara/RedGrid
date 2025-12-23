@@ -5,13 +5,13 @@ dotenv.config();
 
 // 1. Create the Transporter
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // or your SMTP provider (SendGrid, Mailgun, etc.)
+  service: 'gmail', 
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT || 587,
   secure: false, // true for 465, false for other ports
   auth: {
-    user: process.env.SMTP_USER, // Your email address
-    pass: process.env.SMTP_PASS, // Your email password or App Password
+    user: process.env.SMTP_USER, 
+    pass: process.env.SMTP_PASS, 
   },
 });
 
@@ -60,7 +60,7 @@ export const sendWelcomeEmail = async (email, name, role) => {
 };
 
 /**
- * Sends a Verification Code (Optional: Use only for custom flows)
+ * Sends a Verification Code (Optional)
  */
 export const sendVerificationEmail = async (email, code) => {
   try {
