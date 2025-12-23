@@ -5,20 +5,13 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import toast from 'react-hot-toast';
 
-const quotes = [
-  { text: "The gift of blood is a gift to someone's life.", author: "Unknown" },
-  { text: "Every blood donor is a life saver.", author: "Unknown" },
-  { text: "Blood Donation will cost you nothing but it will save a life!", author: "Unknown" },
-  { text: "A single pint can save three lives, a single gesture can create a million smiles.", author: "Unknown" },
-  { text: "Don't let mosquitoes get your blood first.", author: "Unknown" }
-];
+
 
 const NotFound = () => {
   const navigate = useNavigate();
   const containerRef = useRef(null);
   
   // Select a random quote on mount
-  const [randomQuote] = useState(() => quotes[Math.floor(Math.random() * quotes.length)]);
 
   useGSAP(() => {
     const tl = gsap.timeline();
@@ -57,7 +50,6 @@ const NotFound = () => {
         
         {/* 404 Visual Art */}
         <div className="content-item mb-8 relative inline-block group">
-          {/* Large Background Text */}
           <div className="text-[10rem] sm:text-[12rem] font-bold leading-none text-transparent bg-clip-text bg-gradient-to-br from-gray-200 to-transparent dark:from-gray-800 dark:to-transparent select-none transition-colors group-hover:from-gray-300 dark:group-hover:from-gray-700">
             404
           </div>
@@ -77,23 +69,6 @@ const NotFound = () => {
         <p className="content-item text-lg text-gray-500 dark:text-gray-400 mb-10 max-w-md mx-auto leading-relaxed">
           The page you are looking for has vanished, but the need for heroes hasn't.
         </p>
-
-        {/* Inspirational Quote Card (Clickable) */}
-        <div 
-          onClick={copyQuote}
-          className="content-item cursor-pointer group relative mx-auto max-w-lg bg-white/60 dark:bg-gray-900/60 backdrop-blur-md border border-gray-200 dark:border-gray-800 p-8 rounded-2xl mb-10 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 transition-all duration-300"
-        >
-          <Quote className="absolute top-4 left-4 w-8 h-8 text-red-100 dark:text-red-900/50" />
-          <p className="text-gray-800 dark:text-gray-200 font-medium italic relative z-10 font-serif text-xl leading-relaxed">
-            "{randomQuote.text}"
-          </p>
-          <div className="flex items-center justify-center gap-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
-            — {randomQuote.author} 
-            <span className="flex items-center gap-1 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-1 group-hover:translate-y-0">
-               <Copy className="w-3 h-3" /> Copy
-            </span>
-          </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="content-item flex flex-col sm:flex-row gap-4 justify-center">
