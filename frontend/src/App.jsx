@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { useAuth, useUser, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import useAuthStore from './store/useAuthStore';
 import { Loader } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 
 // Layouts
 import Navbar from './components/layout/Navbar';
@@ -11,16 +12,16 @@ import Navbar from './components/layout/Navbar';
 // Auth Pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 
 // Dashboard Placeholders
 import DonorDashboard from './pages/donor/DonorDashboard';
 import HospitalDashboard from './pages/hospital/HospitalDashboard';
 import OrgDashboard from './pages/org/OrgDashboard';
+import NotFound from './pages/NotFound';
 
 // --- COMPONENTS ---
 
-// 1. Root Component: The "Traffic Controller"
-// If logged in -> Go to Dashboard. If logged out -> Go to Register.
 const Root = () => {
   const { isSignedIn, user, isLoaded } = useUser();
 
@@ -34,17 +35,14 @@ const Root = () => {
 
   if (isSignedIn) {
     const role = user?.unsafeMetadata?.role;
-    // Intelligent routing based on role
     if (role === 'hospital') return <Navigate to="/hospital/dashboard" replace />;
     if (role === 'organization') return <Navigate to="/org/dashboard" replace />;
     return <Navigate to="/donor/dashboard" replace />;
   }
 
-  // DEFAULT ENTRY POINT: Register Page
   return <Navigate to="/register" replace />;
 };
 
-// 2. Auth Wrapper: Syncs Clerk state with your Zustand store
 const AuthWrapper = ({ children }) => {
   const { isSignedIn, getToken } = useAuth();
   const { checkUser } = useAuthStore();
@@ -62,7 +60,6 @@ const AuthWrapper = ({ children }) => {
   return children;
 };
 
-// 3. Main Layout: Only for pages that NEED the Navbar (Dashboards)
 const MainLayout = () => (
   <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
     <Navbar />
@@ -77,22 +74,24 @@ function App() {
     <BrowserRouter>
       <AuthWrapper>
         <Routes>
-          {/* ENTRY POINT: Redirects to Register or Dashboard */}
+          {/* Root Entry */}
           <Route path="/" element={<Root />} />
 
-          {/* AUTH ROUTES (Full Screen, No Navbar) */}
+          {/* Auth Routes */}
           <Route path="/register/*" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/login/*" element={<Login />} />
-          
-          {/* Clerk OAuth Callback */}
           <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
 
-          {/* PROTECTED DASHBOARD ROUTES (With Navbar) */}
+          {/* Protected Dashboards */}
           <Route element={<MainLayout />}>
             <Route path="/donor/dashboard" element={<DonorDashboard />} />
             <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
             <Route path="/org/dashboard" element={<OrgDashboard />} />
           </Route>
+
+          {/* 2. Use the imported NotFound component */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthWrapper>
     </BrowserRouter>
@@ -101,6 +100,13 @@ function App() {
 
 const AppWrapper = () => (
   <ThemeProvider>
+    <Toaster 
+      position="top-right"
+      toastOptions={{
+        className: 'dark:bg-gray-800 dark:text-white',
+        style: { borderRadius: '10px', background: '#333', color: '#fff' },
+      }} 
+    />
     <App />
   </ThemeProvider>
 );

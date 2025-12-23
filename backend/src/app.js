@@ -8,8 +8,6 @@ const app = express();
 
 app.use(cors());
 
-// CRITICAL FIX: Webhook route must be defined BEFORE standard express.json()
-// and must use express.raw({ type: 'application/json' })
 app.use(
   "/api/webhooks", 
   express.raw({ type: "application/json" }), 
