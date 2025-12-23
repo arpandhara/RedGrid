@@ -35,3 +35,9 @@ html, body, #root {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Custom Text Selection Color */
+::selection {
+  background-color: rgba(230, 57, 70, 0.3); /* Matches --color-primary with opacity */
+  color: inherit;
+}
