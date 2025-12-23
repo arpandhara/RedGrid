@@ -2,24 +2,58 @@ import User from '../models/User.js';
 import { sendVerificationEmail } from '../utils/emailService.js';
 import { clerkClient } from '@clerk/clerk-sdk-node';
 
-// @desc    Onboard User (Set Role & Details)
+// @desc    Onboard User (Deep Profile Update)
 // @route   POST /api/auth/onboarding
 export const onboardUser = async (req, res) => {
   try {
     const { userId } = req.auth; // From Clerk Middleware
-    const { role, bloodGroup, location, organizationName } = req.body;
+  
+    const { 
+      role, 
+      firstName, 
+      lastName, 
+      phone, 
+      location, 
+      donorData,
+      hospitalData,
+      orgData 
+    } = req.body;
 
-    //Update the user
+    // Prepare the base update object
+    let updateData = {
+      role,
+      firstName,
+      lastName,
+      phone,
+      location,
+      isOnboarded: true
+    };
+
+    // Attach Role-Specific Data to the correct Sub-Schema
+    if (role === 'donor' && donorData) {
+      updateData.donorProfile = donorData;
+    } 
+    else if (role === 'hospital' && hospitalData) {
+      updateData.hospitalProfile = hospitalData;
+    } 
+    else if (role === 'organization' && orgData) {
+      //TIME BOMB LOGIC
+      let expiresAt = null;
+      if (orgData.accountType === 'temporary' && orgData.expiryDate) {
+        expiresAt = new Date(orgData.expiryDate);
+      }
+
+      updateData.orgProfile = {
+        ...orgData,
+        accountExpiresAt: expiresAt
+      };
+    }
+
+    // Update the User in MongoDB
     const user = await User.findOneAndUpdate(
       { clerkId: userId },
-      {
-        role,
-        bloodGroup: role === 'donor' ? bloodGroup : null,
-        organizationName: (role !== 'donor') ? organizationName : null,
-        location,
-        isOnboarded: true
-      },
-      { new: true }
+      updateData,
+      { new: true, runValidators: true } // runValidators ensures schemas are respected
     );
 
     if (!user) {
@@ -27,7 +61,9 @@ export const onboardUser = async (req, res) => {
     }
 
     res.status(200).json({ success: true, data: user });
+
   } catch (error) {
+    console.error("Onboarding Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -102,7 +138,7 @@ export const resetPassword = async (req, res) => {
       password: newPassword
     });
 
-    // 3. Clear OTP fields
+    //  Clear OTP fields
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
     await user.save();
@@ -115,3 +151,4 @@ export const resetPassword = async (req, res) => {
     res.status(500).json({ success: false, message: errorMessage });
   }
 };
+

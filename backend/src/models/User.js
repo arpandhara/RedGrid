@@ -13,6 +13,10 @@ const userSchema = new mongoose.Schema({
     default: 'donor' 
   },
   isOnboarded: { type: Boolean, default: false },
+
+  // --- PASSWORD RESET FIELDS ---
+  resetPasswordToken: { type: String, default: null },
+  resetPasswordExpires: { type: Date, default: null },
   
   // --- COMMON DETAILS ---
   firstName: String,
@@ -39,6 +43,7 @@ const userSchema = new mongoose.Schema({
 
 // Indexes
 userSchema.index({ "location.coordinates": "2dsphere" });
+// This index handles the "Time Bomb" feature for temporary events
 userSchema.index({ "orgProfile.accountExpiresAt": 1 }, { expireAfterSeconds: 0 });
 
 const User = mongoose.model('User', userSchema);
