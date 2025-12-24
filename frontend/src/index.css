@@ -3,41 +3,40 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary: #E63946;  /* Your Blood Red */
-  --color-dark: #1a1a1a;     /* Deep Black/Grey */
-  --color-light: #f3f4f6;    /* Soft White */
+  --color-primary: #E63946;
+  --color-dark: #000000;     /* Changed to Pure Black */
+  --color-light: #000000;    /* Changed to Pure Black (Neutralizes Light Mode) */
 }
 
-/* 3. Global Styles
-*/
+/* GLOBAL STYLES */
 body {
-  @apply bg-light text-dark transition-colors duration-300;
-  background-color: black;
+  /* Changed: Always Black, Always White Text */
+  @apply bg-black text-white;
+  background-color: #000000;
 }
 
-/* Dark mode overrides for body */
-.dark body {
-  @apply bg-gray-950 text-white;
+/* Override any potential light mode defaults */
+.light body {
+  @apply bg-black text-white;
 }
 
 ::-webkit-scrollbar {
   display: none;
 }
 
-/* For Firefox, IE, and Edge */
 html, body, #root {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  background-color: #000000; /* Triple check */
+  -ms-overflow-style: none;  
+  scrollbar-width: none;  
 }
 
-/* Ensure all scrollable containers also hide the bar */
 * {
   -ms-overflow-style: none;
   scrollbar-width: none;
+  border-color: #27272a; /* Zinc-800 for borders by default */
 }
 
-/* Custom Text Selection Color */
 ::selection {
-  background-color: rgba(230, 57, 70, 0.3); /* Matches --color-primary with opacity */
-  color: inherit;
+  background-color: rgba(230, 57, 70, 0.3);
+  color: white;
 }

@@ -3,16 +3,19 @@ import { createContext, useContext, useEffect, useState } from "react";
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  // Check localStorage or default to light
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  // CHANGED: Default is now "dark"
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
 
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
+    
+    // Clean up classes
+    root.classList.remove("light", "dark");
+    
+    // Apply current theme
+    root.classList.add(theme);
+    
+    // Save preference
     localStorage.setItem("theme", theme);
   }, [theme]);
 
