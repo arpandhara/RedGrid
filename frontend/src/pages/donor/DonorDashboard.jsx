@@ -8,8 +8,7 @@ const DonorDashboard = () => {
   const { user } = useAuthStore();
 
   // While checking user status, show skeleton
-  if (!user)
-    return <div className="animate-pulse h-96 bg-gray-100 rounded-xl" />;
+  if (!user) return <div className="animate-pulse h-96 rounded-xl" />;
 
   const needsOnboarding = !user.isOnboarded;
 

@@ -20,7 +20,6 @@ import HospitalDashboard from './pages/hospital/HospitalDashboard';
 import OrgDashboard from './pages/org/OrgDashboard';
 import NotFound from './pages/NotFound';
 
-// --- WRAPPERS ---
 const AuthWrapper = ({ children }) => {
   const { isSignedIn, getToken } = useAuth();
   const { checkUser } = useAuthStore();
@@ -38,8 +37,7 @@ const AuthWrapper = ({ children }) => {
   return children;
 };
 
-// 1. DashboardLayout (Sidebar + Content)
-// FORCED BLACK
+// 1. DashboardLayout (Sidebar + Content) - FORCED BLACK
 const DashboardLayout = () => {
   return (
     <div className="flex min-h-screen bg-black text-white">
@@ -53,8 +51,7 @@ const DashboardLayout = () => {
   );
 };
 
-// 2. LandingLayout (Public)
-// FORCED BLACK
+// 2. LandingLayout - FORCED BLACK (No Navbar)
 const LandingLayout = () => (
     <div className="min-h-screen bg-black text-white">
         <div className="w-full h-full">
@@ -63,11 +60,9 @@ const LandingLayout = () => (
     </div>
 );
 
-// 3. Root Controller
 const Root = () => {
   const { isSignedIn, user, isLoaded } = useUser();
 
-  // Instant Skeleton
   if (!isLoaded) return <SkeletonLayout />;
 
   if (isSignedIn) {
@@ -116,8 +111,8 @@ const AppWrapper = () => (
     <Toaster 
       position="top-right"
       toastOptions={{
-        className: 'bg-zinc-800 text-white',
-        style: { borderRadius: '10px', background: '#333', color: '#fff' },
+        className: 'bg-zinc-900 text-white border border-zinc-800',
+        style: { borderRadius: '10px', background: '#18181b', color: '#fff' },
       }} 
     />
     <App />

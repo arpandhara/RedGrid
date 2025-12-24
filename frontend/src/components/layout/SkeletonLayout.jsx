@@ -8,8 +8,8 @@ const SkeletonLayout = () => {
       <div className="hidden md:flex w-64 flex-col border-r border-zinc-800 p-6 space-y-8 bg-black">
         {/* Logo Placeholder */}
         <div className="flex items-center gap-3">
-             {/* <div className="w-8 h-8 bg-zinc-900 rounded-lg animate-pulse" /> */}
-             {/* <div className="h-6 w-24 bg-zinc-900 rounded animate-pulse" /> */}
+             <div className="w-8 h-8 bg-zinc-900 rounded-lg animate-pulse" />
+             <div className="h-6 w-24 bg-zinc-900 rounded animate-pulse" />
         </div>
 
         {/* Nav Items Skeleton */}
@@ -26,7 +26,7 @@ const SkeletonLayout = () => {
         <div className="w-full h-1 bg-zinc-900 rounded-full overflow-hidden absolute top-0 left-0">
              <div className="h-full w-1/3 bg-red-600 animate-[loading_1s_ease-in-out_infinite]" /> 
         </div>
-        
+
         {/* Header Text */}
         <div className="h-10 w-64 bg-zinc-900 rounded-lg animate-pulse mt-4" />
         

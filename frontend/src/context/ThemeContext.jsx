@@ -1,30 +1,23 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect } from "react";
 
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  // CHANGED: Default is now "dark"
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
-
+  // FORCE DARK MODE: No state, no toggle, just execution.
   useEffect(() => {
     const root = document.documentElement;
     
-    // Clean up classes
-    root.classList.remove("light", "dark");
+    // Remove any potential 'light' class and force 'dark'
+    root.classList.remove("light");
+    root.classList.add("dark");
     
-    // Apply current theme
-    root.classList.add(theme);
-    
-    // Save preference
-    localStorage.setItem("theme", theme);
-  }, [theme]);
+    // Optional: Force local storage to dark in case other tabs check it
+    localStorage.setItem("theme", "dark");
+  }, []);
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  };
-
+  // We provide an empty context or a fixed one since switching is disabled
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme: "dark", toggleTheme: () => {} }}>
       {children}
     </ThemeContext.Provider>
   );
