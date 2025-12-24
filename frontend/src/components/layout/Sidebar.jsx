@@ -14,7 +14,9 @@ import {
   LogOut,
   Menu,
   X,
-  MapPin
+  MapPin,
+  ChevronRight,
+  Loader2 // Imported Loader
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -25,6 +27,9 @@ const Sidebar = () => {
   
   // Mobile Toggle State
   const [isOpen, setIsOpen] = useState(false);
+  
+  // 1. Add Loading State for Logout
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const role = user?.unsafeMetadata?.role || "donor";
 
@@ -56,9 +61,21 @@ const Sidebar = () => {
       { x: -20, opacity: 0 }, 
       { x: 0, opacity: 1, duration: 0.4, stagger: 0.05, ease: "power2.out", delay: 0.2 }
     );
+    
+    gsap.fromTo(".sidebar-footer",
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "power2.out", delay: 0.5 }
+    );
   }, { scope: sidebarRef });
 
   const toggleSidebar = () => setIsOpen(!isOpen);
+
+  // 2. Handle Logout with Loading State
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    // Passing the callback ensures navigation happens after signout is complete
+    await signOut(() => navigate("/"));
+  };
 
   return (
     <>
@@ -66,77 +83,101 @@ const Sidebar = () => {
       <div className="fixed top-4 left-4 z-50 md:hidden">
         <button 
           onClick={toggleSidebar}
-          className="p-2 bg-zinc-900 border border-zinc-800 text-white rounded-lg shadow-lg active:scale-95 transition-transform"
+          className="p-2.5 bg-zinc-900/90 backdrop-blur-md border border-zinc-700/50 text-white rounded-xl shadow-xl active:scale-95 transition-all"
         >
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
+          {isOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
       {/* --- SIDEBAR CONTAINER --- */}
-      {/* 1. fixed: Always on screen
-          2. -translate-x-full: Hidden by default on mobile
-          3. md:translate-x-0: Always visible on desktop
-          4. transition-transform: Smooth slide effect
-      */}
       <aside 
         ref={sidebarRef}
         className={`
-          fixed top-0 left-0 h-screen w-64 bg-black border-r border-zinc-800 z-40
-          transition-transform duration-300 ease-in-out
+          fixed top-0 left-0 h-screen w-72 bg-[#09090b] border-r border-white/5 z-40
+          flex flex-col shadow-2xl shadow-black
+          transition-transform duration-300 cubic-bezier(0.4, 0, 0.2, 1)
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0 
         `}
       >
         {/* Header / Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-zinc-800">
-          <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white shadow-red-900/20 shadow-lg">
-                  <HeartPulse size={18} strokeWidth={3} />
+        <div className="h-24 flex items-center px-8">
+          <div className="flex items-center gap-3 group cursor-pointer">
+              <div className="relative w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-red-900/20 group-hover:scale-105 transition-transform duration-300">
+                  <HeartPulse size={22} strokeWidth={2.5} />
+                  <div className="absolute inset-0 bg-white/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <span className="font-bold text-lg tracking-tight text-white">RedGrid</span>
+              <div className="flex flex-col">
+                <span className="font-bold text-xl tracking-tight text-white leading-none">RedGrid</span>
+                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mt-1">Life Saver</span>
+              </div>
           </div>
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto custom-scrollbar">
+          <div className="px-4 mb-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Menu</div>
           {navItems.map((item) => (
             <SidebarItem 
               key={item.path} 
               to={item.path} 
               icon={item.icon} 
               label={item.label}
-              onClick={() => setIsOpen(false)} // Close on click (mobile)
+              onClick={() => setIsOpen(false)}
             />
           ))}
         </nav>
 
         {/* User / Logout Section */}
-        <div className="p-4 border-t border-zinc-800 bg-zinc-900/30">
-          <div className="flex items-center gap-3 mb-4 px-2">
-              <img 
-                  src={user?.imageUrl} 
-                  alt="Profile" 
-                  className="w-8 h-8 rounded-full border border-zinc-700"
-              />
-              <div className="overflow-hidden">
-                  <p className="text-sm font-medium truncate text-zinc-200">{user?.fullName}</p>
-                  <p className="text-xs text-zinc-500 truncate capitalize">{role}</p>
-              </div>
-          </div>
-          <button
-            onClick={() => signOut(() => navigate("/"))}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-900/10 hover:text-red-400 transition-colors nav-item group"
-          >
-            <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
-            <span>Sign Out</span>
-          </button>
+        <div className="sidebar-footer p-4 mt-auto">
+            <div className="bg-zinc-900/50 rounded-2xl border border-white/5 p-4 backdrop-blur-sm">
+                
+                {/* User Profile Info */}
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="relative">
+                        <img 
+                            src={user?.imageUrl} 
+                            alt="Profile" 
+                            className="w-10 h-10 rounded-full border-2 border-zinc-800 object-cover"
+                        />
+                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-zinc-900 rounded-full"></div>
+                    </div>
+                    <div className="overflow-hidden flex-1">
+                        <p className="text-sm font-semibold truncate text-zinc-100">{user?.fullName}</p>
+                        <p className="text-xs text-zinc-500 truncate capitalize flex items-center gap-1">
+                            {role}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Sign Out Button (Updated) */}
+                <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-400 bg-zinc-900 border border-zinc-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-200 group disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    <span className="flex items-center gap-2">
+                        {/* 3. Conditional Icon Rendering */}
+                        {isLoggingOut ? (
+                           <Loader2 size={16} className="animate-spin text-red-500" />
+                        ) : (
+                           <LogOut size={16} />
+                        )}
+                        <span>{isLoggingOut ? "Signing Out..." : "Sign Out"}</span>
+                    </span>
+                    
+                    {!isLoggingOut && (
+                      <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                    )}
+                </button>
+            </div>
         </div>
       </aside>
 
-      {/* Mobile Overlay (Click to close) */}
+      {/* Mobile Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 md:hidden"
+          className="fixed inset-0 bg-black/80 backdrop-blur-[2px] z-30 md:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -149,18 +190,20 @@ const SidebarItem = ({ to, icon: Icon, label, onClick }) => (
     to={to}
     onClick={onClick}
     className={({ isActive }) =>
-      `nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden ${
+      `nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
         isActive
-          ? "bg-red-600/10 text-red-500 border border-red-900/30 shadow-[0_0_15px_rgba(220,38,38,0.1)]"
-          : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+          ? "bg-gradient-to-r from-red-600/10 to-transparent text-red-500 border-l-2 border-red-500"
+          : "text-zinc-500 hover:bg-white/5 hover:text-zinc-200"
       }`
     }
   >
     {({ isActive }) => (
         <>
-            <Icon size={20} className={isActive ? "text-red-500" : "text-zinc-500 group-hover:text-zinc-300"} />
+            <Icon 
+                size={20} 
+                className={`transition-colors duration-200 ${isActive ? "text-red-500" : "text-zinc-500 group-hover:text-zinc-300"}`} 
+            />
             <span className="relative z-10">{label}</span>
-            {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-red-600 rounded-r-full shadow-[0_0_10px_#dc2626]" />}
         </>
     )}
   </NavLink>
