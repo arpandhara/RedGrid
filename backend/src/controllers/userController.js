@@ -22,29 +22,33 @@ export const getUserById = async (req, res) => {
 // @route   PUT /api/users/profile
 export const updateProfile = async (req, res) => {
   try {
-    const { userId } = req.auth; 
-    
-    const allowedUpdates = {
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      bloodGroup: req.body.bloodGroup,
-      location: req.body.location,
-      organizationName: req.body.organizationName,
-      // Add other safe fields like 'bio', 'phone' if you add them to the model later
-    };
+    const userId = req.user.id;
+    const updates = req.body;
 
-    Object.keys(allowedUpdates).forEach(key => 
-      allowedUpdates[key] === undefined && delete allowedUpdates[key]
-    );
+    // 1. Prevent updating sensitive fields directly
+    delete updates.password;
+    delete updates.role;
+    delete updates.email; // Usually verified emails shouldn't be changed easily
+    delete updates._id;
 
-    const user = await User.findOneAndUpdate(
-      { clerkId: userId },
-      { $set: allowedUpdates },
-      { new: true }
-    );
+    // 2. Find and Update
+    // { new: true } returns the updated document
+    const user = await User.findByIdAndUpdate(userId, updates, { 
+      new: true, 
+      runValidators: true 
+    }).select('-password');
 
-    res.status(200).json({ success: true, data: user });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user,
+      message: 'Profile updated successfully'
+    });
   } catch (error) {
+    console.error('Update profile error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

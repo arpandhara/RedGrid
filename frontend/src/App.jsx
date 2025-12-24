@@ -19,6 +19,7 @@ import DonorDashboard from './pages/donor/DonorDashboard';
 import HospitalDashboard from './pages/hospital/HospitalDashboard';
 import OrgDashboard from './pages/org/OrgDashboard';
 import NotFound from './pages/NotFound';
+import Settings from './pages/settings/Settings';
 
 const AuthWrapper = ({ children }) => {
   const { isSignedIn, getToken } = useAuth();
@@ -96,7 +97,7 @@ function App() {
             <Route path="/donor/dashboard" element={<DonorDashboard />} />
             <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
             <Route path="/org/dashboard" element={<OrgDashboard />} />
-            <Route path="/settings" element={<div className="text-white p-8">Settings Page</div>} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
