@@ -84,7 +84,7 @@ const Sidebar = () => {
           fixed top-0 left-0 h-screen w-64 bg-black border-r border-zinc-800 z-40
           transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0 md:static md:flex md:flex-col
+          md:translate-x-0 
         `}
       >
         {/* Header / Logo */}
