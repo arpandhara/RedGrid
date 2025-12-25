@@ -30,23 +30,33 @@ export const onboardUser = async (req, res) => {
 
     // === FIX: Handle Location Transformation (GeoJSON) ===
     if (location) {
-       // Create a shallow copy so we don't mutate req.body directly
        updateData.location = { ...location };
 
+       // Ensure coordinates exist and are valid numbers
        if (location.coordinates) {
          const coords = location.coordinates;
+         let validCoords = null;
 
-         // Check if it's the { lat, lng } object from frontend
+         // Handle { lat, lng } object from frontend
          if (typeof coords === 'object' && !Array.isArray(coords)) {
-            // Convert to MongoDB format: [Longitude, Latitude]
-            updateData.location.coordinates = [Number(coords.lng), Number(coords.lat)];
-         } else if (Array.isArray(coords)) {
-            // Already an array
-            updateData.location.coordinates = coords;
+            const lng = Number(coords.lng);
+            const lat = Number(coords.lat);
+            if (!isNaN(lng) && !isNaN(lat)) {
+               validCoords = [lng, lat];
+            }
+         } 
+         // Handle [lng, lat] array
+         else if (Array.isArray(coords) && coords.length === 2) {
+             validCoords = coords;
          }
 
-         // Explicitly set the type for GeoJSON indexing
-         updateData.location.type = 'Point';
+         if (validCoords) {
+             updateData.location.coordinates = validCoords;
+             updateData.location.type = 'Point';
+         } else {
+             // If coordinates are invalid, DO NOT set location to avoid breaking index
+             delete updateData.location; 
+         }
        }
     }
     // ====================================================

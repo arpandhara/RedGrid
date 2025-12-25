@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useClerk, useUser } from "@clerk/clerk-react";
@@ -24,7 +25,7 @@ import {
 const Sidebar = () => {
   // 1. Get Clerk User (for Image) AND MongoDB User (for Role/Data)
   const { user: clerkUser } = useUser();
-  const { user: mongoUser, clearUser } = useAuthStore();
+  const { user: mongoUser, logout } = useAuthStore();
   
   const { signOut } = useClerk();
   const navigate = useNavigate();
@@ -76,7 +77,7 @@ const Sidebar = () => {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await signOut(async () => {
-      clearUser(); // 3. Clear local store on logout
+      logout(); // 3. Clear local store on logout
       navigate("/");
     });
   };

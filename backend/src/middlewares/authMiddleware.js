@@ -37,3 +37,24 @@ export const authorize = (...roles) => {
     }
   };
 };
+
+// 3. Populate req.user without role check (for common routes)
+export const loadUser = async (req, res, next) => {
+  try {
+    if (!req.auth || !req.auth.userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const user = await User.findOne({ clerkId: req.auth.userId });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User record not found' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('Load User Error:', error);
+    res.status(500).json({ success: false, message: 'Server Error loading user' });
+  }
+};
