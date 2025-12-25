@@ -31,6 +31,8 @@ import HospitalDashboard from "./pages/hospital/HospitalDashboard";
 import OrgDashboard from "./pages/org/OrgDashboard";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/settings/Settings";
+import CreateRequest from "./pages/hospital/CreateRequest";
+import Notifications from "./pages/donor/Notifications";
 
 const AuthWrapper = ({ children }) => {
   const { isSignedIn, getToken } = useAuth();
@@ -114,6 +116,11 @@ function App() {
               element={isLoaded ? <DashboardLayout /> : <SkeletonLayout />}
             >
               <Route path="/donor/dashboard" element={<DonorDashboard />} />
+              <Route path="/donor/notifications" element={<Notifications />} />
+              <Route
+                path="/hospital/create-request"
+                element={<CreateRequest />}
+              />
               <Route
                 path="/hospital/dashboard"
                 element={<HospitalDashboard />}

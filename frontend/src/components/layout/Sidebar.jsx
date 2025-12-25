@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useClerk, useUser } from "@clerk/clerk-react";
+import useAuthStore from "../../store/useAuthStore"; // Import your store
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import {
@@ -13,29 +14,32 @@ import {
   Settings,
   LogOut,
   Menu,
+  Bell,
   X,
   MapPin,
   ChevronRight,
-  Loader2 // Imported Loader
+  Loader2 
 } from "lucide-react";
 
 const Sidebar = () => {
-  const { user } = useUser();
+  // 1. Get Clerk User (for Image) AND MongoDB User (for Role/Data)
+  const { user: clerkUser } = useUser();
+  const { user: mongoUser, clearUser } = useAuthStore();
+  
   const { signOut } = useClerk();
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
   
-  // Mobile Toggle State
   const [isOpen, setIsOpen] = useState(false);
-  
-  // 1. Add Loading State for Logout
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const role = user?.unsafeMetadata?.role || "donor";
+  // 2. Use Role from MongoDB Store (Source of Truth)
+  const role = mongoUser?.role || "donor";
 
   const roleLinks = {
     donor: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/donor/dashboard" },
+      { icon: Bell, label: "Notifications", path: "/donor/notifications" }, // Added Notification Link
       { icon: History, label: "My History", path: "/donor/history" },
       { icon: MapPin, label: "Nearby Camps", path: "/donor/camps" },
     ],
@@ -46,7 +50,7 @@ const Sidebar = () => {
     ],
     organization: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/org/dashboard" },
-      { icon: Tent, label: "Manage Camps", path: "/org/camp-manage" },
+      { icon: Tent, label: "Manage Camps", path: "/org/camps" }, // Matched route to your router
     ]
   };
 
@@ -55,7 +59,6 @@ const Sidebar = () => {
     { icon: Settings, label: "Settings", path: "/settings" }
   ];
 
-  // GSAP Animation for Desktop load
   useGSAP(() => {
     gsap.fromTo(".nav-item", 
       { x: -20, opacity: 0 }, 
@@ -70,11 +73,12 @@ const Sidebar = () => {
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
-  // 2. Handle Logout with Loading State
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    // Passing the callback ensures navigation happens after signout is complete
-    await signOut(() => navigate("/"));
+    await signOut(async () => {
+      clearUser(); // 3. Clear local store on logout
+      navigate("/");
+    });
   };
 
   return (
@@ -135,29 +139,32 @@ const Sidebar = () => {
                 {/* User Profile Info */}
                 <div className="flex items-center gap-3 mb-4">
                     <div className="relative">
+                        {/* Use Clerk Image, fallback to placeholder */}
                         <img 
-                            src={user?.imageUrl} 
+                            src={clerkUser?.imageUrl || "https://via.placeholder.com/40"} 
                             alt="Profile" 
                             className="w-10 h-10 rounded-full border-2 border-zinc-800 object-cover"
                         />
                         <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-zinc-900 rounded-full"></div>
                     </div>
                     <div className="overflow-hidden flex-1">
-                        <p className="text-sm font-semibold truncate text-zinc-100">{user?.fullName}</p>
+                        {/* Use MongoDB Name if available, else Clerk Name */}
+                        <p className="text-sm font-semibold truncate text-zinc-100">
+                           {mongoUser ? `${mongoUser.firstName} ${mongoUser.lastName}` : clerkUser?.fullName}
+                        </p>
                         <p className="text-xs text-zinc-500 truncate capitalize flex items-center gap-1">
                             {role}
                         </p>
                     </div>
                 </div>
 
-                {/* Sign Out Button (Updated) */}
+                {/* Sign Out Button */}
                 <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-400 bg-zinc-900 border border-zinc-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-200 group disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     <span className="flex items-center gap-2">
-                        {/* 3. Conditional Icon Rendering */}
                         {isLoggingOut ? (
                            <Loader2 size={16} className="animate-spin text-red-500" />
                         ) : (
