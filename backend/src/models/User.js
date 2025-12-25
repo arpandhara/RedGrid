@@ -50,6 +50,8 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ "location": "2dsphere" });
 // This index handles the "Time Bomb" feature for temporary events
 userSchema.index({ "orgProfile.accountExpiresAt": 1 }, { expireAfterSeconds: 0 });
+userSchema.index({ "donorProfile.bloodGroup": 1 });
+userSchema.index({ "donorProfile.isAvailable": 1 });
 
 const User = mongoose.model('User', userSchema);
 export default User;
