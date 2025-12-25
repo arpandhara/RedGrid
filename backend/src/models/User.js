@@ -28,9 +28,14 @@ const userSchema = new mongoose.Schema({
     address: String,
     city: String,
     state: String,
+    type: {
+      type: String, 
+      enum: ['Point'], 
+      default: 'Point'
+    },
     coordinates: {
-      lat: Number,
-      lng: Number
+      type: [Number], // [longitude, latitude]
+      index: '2dsphere' // Critical for geospatial queries
     }
   },
 
@@ -42,7 +47,7 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes
-userSchema.index({ "location.coordinates": "2dsphere" });
+userSchema.index({ "location": "2dsphere" });
 // This index handles the "Time Bomb" feature for temporary events
 userSchema.index({ "orgProfile.accountExpiresAt": 1 }, { expireAfterSeconds: 0 });
 

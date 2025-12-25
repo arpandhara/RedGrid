@@ -3,6 +3,7 @@ import cors from "cors";
 import webhookRoutes from "./routes/webhookRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import requestRoutes from "./routes/requestRoutes.js";
 
 const app = express();
 
@@ -20,5 +21,6 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/requests", requestRoutes);
 
 export default app;
