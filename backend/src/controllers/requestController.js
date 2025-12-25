@@ -10,7 +10,7 @@ import { sendEmail } from '../utils/emailService.js';
 export const createRequest = async (req, res) => {
   try {
     const { patientName, bloodGroup, unitsNeeded, urgency, location } = req.body;
-    const requesterId = req.auth.userId; // From Auth Middleware
+    const requesterId = req.user._id;
 
     // Create the Request
     const newRequest = await Request.create({

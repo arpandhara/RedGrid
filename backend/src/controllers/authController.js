@@ -25,9 +25,31 @@ export const onboardUser = async (req, res) => {
       firstName,
       lastName,
       phone,
-      location,
       isOnboarded: true
     };
+
+    // === FIX: Handle Location Transformation (GeoJSON) ===
+    if (location) {
+       // Create a shallow copy so we don't mutate req.body directly
+       updateData.location = { ...location };
+
+       if (location.coordinates) {
+         const coords = location.coordinates;
+
+         // Check if it's the { lat, lng } object from frontend
+         if (typeof coords === 'object' && !Array.isArray(coords)) {
+            // Convert to MongoDB format: [Longitude, Latitude]
+            updateData.location.coordinates = [Number(coords.lng), Number(coords.lat)];
+         } else if (Array.isArray(coords)) {
+            // Already an array
+            updateData.location.coordinates = coords;
+         }
+
+         // Explicitly set the type for GeoJSON indexing
+         updateData.location.type = 'Point';
+       }
+    }
+    // ====================================================
 
     // Attach Role-Specific Data to the correct Sub-Schema
     if (role === 'donor' && donorData) {
@@ -89,7 +111,6 @@ export const forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      // For security, don't reveal if user doesn't exist, but for dev we can return 404
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
@@ -97,11 +118,11 @@ export const forgotPassword = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Save OTP to DB (Expires in 15 mins)
-    user.resetPasswordToken = otp; // In production, consider hashing this
-    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins
+    user.resetPasswordToken = otp; 
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; 
     await user.save();
 
-    //Send Email
+    // Send Email
     const emailSent = await sendVerificationEmail(user.email, otp);
 
     if (!emailSent) {
@@ -125,7 +146,7 @@ export const resetPassword = async (req, res) => {
     const user = await User.findOne({
       email,
       resetPasswordToken: otp,
-      resetPasswordExpires: { $gt: Date.now() } // Ensure not expired
+      resetPasswordExpires: { $gt: Date.now() } 
     });
 
     if (!user) {
@@ -133,12 +154,11 @@ export const resetPassword = async (req, res) => {
     }
 
     // Update Password in Clerk
-    // This updates the user's password securely in Clerk's database
     await clerkClient.users.updateUser(user.clerkId, {
       password: newPassword
     });
 
-    //  Clear OTP fields
+    // Clear OTP fields
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
     await user.save();
@@ -146,9 +166,7 @@ export const resetPassword = async (req, res) => {
     res.status(200).json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     console.error('Reset Password Error:', error);
-    // Handle specific Clerk password errors
     const errorMessage = error.errors ? error.errors[0].message : error.message;
     res.status(500).json({ success: false, message: errorMessage });
   }
 };
-

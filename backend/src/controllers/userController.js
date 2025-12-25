@@ -19,7 +19,6 @@ export const updateProfile = async (req, res) => {
     const { userId } = req.auth; 
     const body = req.body;
 
-    // 1. Prepare Updates Object using Dot Notation for Nested Fields
     const updates = {};
 
     // --- Common Fields ---
@@ -33,7 +32,26 @@ export const updateProfile = async (req, res) => {
       if (body.location.city) updates["location.city"] = body.location.city;
       if (body.location.state) updates["location.state"] = body.location.state;
       if (body.location.zipCode) updates["location.zipCode"] = body.location.zipCode;
-      if (body.location.coordinates) updates["location.coordinates"] = body.location.coordinates;
+      
+      // === FIX STARTS HERE ===
+      // Check if coordinates exist
+      if (body.location.coordinates) {
+        const coords = body.location.coordinates;
+
+        // If frontend sends { lat: 123, lng: 456 }, convert to [456, 123]
+        if (typeof coords === 'object' && !Array.isArray(coords)) {
+            // GeoJSON requires [Longitude, Latitude] order
+            updates["location.coordinates"] = [Number(coords.lng), Number(coords.lat)];
+        } 
+        // If it's already an array, just assign it
+        else if (Array.isArray(coords)) {
+            updates["location.coordinates"] = coords;
+        }
+        
+        // Ensure the 'type' is set for GeoJSON to work
+        updates["location.type"] = "Point";
+      }
+      // === FIX ENDS HERE ===
     }
 
     // --- Donor Profile Fields ---
