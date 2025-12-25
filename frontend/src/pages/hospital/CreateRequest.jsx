@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form"; // Ensure you have installed: npm install react-hook-form
 import { ArrowLeft, Siren, User, Activity, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuth } from "@clerk/clerk-react";
 import useAuthStore from "../../store/useAuthStore";
 import api from "../../api/axios"; // Assuming you have a configured axios instance
 
 const CreateRequest = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { getToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -39,7 +41,8 @@ const CreateRequest = () => {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      // Construct the payload matching your Request.js model
+      const token = await getToken();
+
       const payload = {
         patientName: data.patientName,
         bloodGroup: data.bloodGroup,
@@ -52,7 +55,11 @@ const CreateRequest = () => {
         },
       };
 
-      const res = await api.post("/requests", payload);
+      const res = await api.post("/requests", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`, 
+        },
+      });
 
       if (res.data.success) {
         toast.success("Request Broadcasted to Donors!");
