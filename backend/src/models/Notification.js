@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema({
   recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { type: String, enum: ['blood_request', 'status_update', 'general'], default: 'general' },
+  type: { type: String, enum: ['blood_request', 'status_update', 'general', 'direct_request'], default: 'general' },
   title: String,
   message: String,
   relatedRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'Request' },

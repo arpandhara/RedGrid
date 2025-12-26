@@ -22,11 +22,20 @@ import axios from "axios";
 const OnboardingWizard = () => {
   const { user } = useUser();
   const { getToken } = useAuth();
-  const { onboard } = useAuthStore();
+  const { onboard, user: dbUser } = useAuthStore();
   const navigate = useNavigate();
 
   const role = user?.unsafeMetadata?.role || "donor";
   const totalSteps = 3;
+
+  // Protect: If already onboarded, go to dashboard
+  React.useEffect(() => {
+      if (dbUser && dbUser.isOnboarded) {
+          if (dbUser.role === 'hospital') navigate('/hospital/dashboard');
+          else if (dbUser.role === 'organization') navigate('/org/dashboard');
+          else navigate('/donor/dashboard');
+      }
+  }, [dbUser, navigate]);
 
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);

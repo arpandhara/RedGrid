@@ -13,7 +13,10 @@ export const useSocket = () => {
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0); // Badge Count
   const { user } = useAuthStore(); // Access the logged-in user from your store
+
+  const markRead = () => setUnreadCount(0);
 
   useEffect(() => {
     // Only connect if we have a user with a MongoDB _id
@@ -30,6 +33,7 @@ export const SocketProvider = ({ children }) => {
       // 3. Listen for Live Notifications
       newSocket.on('notification', (data) => {
         console.log("New Notification Received:", data);
+        setUnreadCount(prev => prev + 1); // Increment Badge
         
         toast((t) => (
           <div className="flex flex-col gap-1">
@@ -72,7 +76,7 @@ export const SocketProvider = ({ children }) => {
   }, [user]); // Re-run if user logs in/out
 
   return (
-    <SocketContext.Provider value={{ socket }}>
+    <SocketContext.Provider value={{ socket, unreadCount, markRead }}>
       {children}
     </SocketContext.Provider>
   );

@@ -19,7 +19,9 @@
     "helmet": "^8.1.0",
     "mongoose": "^9.0.2",
     "multer": "^2.0.2",
+    "node-geocoder": "^4.4.1",
     "nodemailer": "^7.0.11",
+    "pdfkit": "^0.17.2",
     "socket.io": "^4.8.1",
     "svix": "^1.82.0",
     "zod": "^4.2.1"

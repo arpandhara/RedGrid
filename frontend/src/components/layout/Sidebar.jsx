@@ -3,6 +3,7 @@ import React, { useState, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useClerk, useUser } from "@clerk/clerk-react";
 import useAuthStore from "../../store/useAuthStore"; // Import your store
+import { useSocket } from "../../context/SocketContext";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import {
@@ -10,6 +11,7 @@ import {
   HeartPulse,
   History,
   Droplet,
+  FolderKanban,
   ClipboardList,
   Tent,
   Settings,
@@ -19,13 +21,18 @@ import {
   X,
   MapPin,
   ChevronRight,
-  Loader2 
+  Loader2,
+  Globe // New Icon
 } from "lucide-react";
 
 const Sidebar = () => {
   // 1. Get Clerk User (for Image) AND MongoDB User (for Role/Data)
+  // 1. Get Clerk User (for Image) AND MongoDB User (for Role/Data)
   const { user: clerkUser } = useUser();
   const { user: mongoUser, logout } = useAuthStore();
+  
+  // NEW: Get Unread Count from Socket
+  const { unreadCount } = useSocket(); 
   
   const { signOut } = useClerk();
   const navigate = useNavigate();
@@ -40,14 +47,16 @@ const Sidebar = () => {
   const roleLinks = {
     donor: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/donor/dashboard" },
+      { icon: Globe, label: "Donor Hub", path: "/donor/hub" }, // New Hub Link
       { icon: Bell, label: "Notifications", path: "/donor/notifications" }, // Added Notification Link
       { icon: History, label: "My History", path: "/donor/history" },
       { icon: MapPin, label: "Nearby Camps", path: "/donor/camps" },
     ],
     hospital: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/hospital/dashboard" },
+      { icon: ClipboardList, label: "New Request", path: "/hospital/create-request" },
+      { icon: FolderKanban, label: "Manage Requests", path: "/hospital/manage-requests" },
       { icon: Droplet, label: "Inventory", path: "/hospital/inventory" },
-      { icon: ClipboardList, label: "Requests", path: "/hospital/create-request" },
     ],
     organization: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/org/dashboard" },
@@ -98,7 +107,7 @@ const Sidebar = () => {
       <aside 
         ref={sidebarRef}
         className={`
-          fixed top-0 left-0 h-screen w-72 bg-[#09090b] border-r border-white/5 z-40
+          fixed top-0 left-0 h-screen w-64 bg-[#09090b] border-r border-white/5 z-40
           flex flex-col shadow-2xl shadow-black
           transition-transform duration-300 cubic-bezier(0.4, 0, 0.2, 1)
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
@@ -129,6 +138,7 @@ const Sidebar = () => {
               icon={item.icon} 
               label={item.label}
               onClick={() => setIsOpen(false)}
+              badge={item.label === "Notifications" ? unreadCount : 0}
             />
           ))}
         </nav>
@@ -193,7 +203,7 @@ const Sidebar = () => {
   );
 };
 
-const SidebarItem = ({ to, icon: Icon, label, onClick }) => (
+const SidebarItem = ({ to, icon: Icon, label, onClick, badge }) => (
   <NavLink
     to={to}
     onClick={onClick}
@@ -211,7 +221,12 @@ const SidebarItem = ({ to, icon: Icon, label, onClick }) => (
                 size={20} 
                 className={`transition-colors duration-200 ${isActive ? "text-red-500" : "text-zinc-500 group-hover:text-zinc-300"}`} 
             />
-            <span className="relative z-10">{label}</span>
+            <span className="relative z-10 flex-1">{label}</span>
+            {badge > 0 && (
+                <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                    {badge > 9 ? '9+' : badge}
+                </span>
+            )}
         </>
     )}
   </NavLink>

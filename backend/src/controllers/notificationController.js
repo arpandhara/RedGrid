@@ -5,6 +5,14 @@ import Notification from '../models/Notification.js';
 export const getMyNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find({ recipient: req.user._id })
+      .populate({
+        path: 'relatedRequestId',
+        select: 'patientName bloodGroup unitsNeeded urgency status location',
+        populate: {
+            path: 'requester',
+            select: 'firstName lastName hospitalProfile location'
+        }
+      })
       .sort({ createdAt: -1 }) // Newest first
       .limit(50); // Limit to last 50 to prevent overload
 

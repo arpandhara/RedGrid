@@ -8,4 +8,15 @@ const api = axios.create({
   },
 });
 
+// Add a request interceptor to dynamically inject the token
+api.interceptors.request.use(async (config) => {
+  const token = await window.Clerk?.session?.getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
 export default api;

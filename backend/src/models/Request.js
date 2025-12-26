@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 
 const requestSchema = new mongoose.Schema({
   requester: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // The Hospital
+  recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // For P2P
+  isDirect: { type: Boolean, default: false },
   patientName: { type: String, required: true },
   bloodGroup: { 
     type: String, 
@@ -20,7 +22,7 @@ const requestSchema = new mongoose.Schema({
 
   status: { 
     type: String, 
-    enum: ['pending', 'accepted', 'fulfilled', 'cancelled'], 
+    enum: ['pending', 'accepted', 'fulfilled', 'cancelled', 'rejected'], 
     default: 'pending' 
   },
   

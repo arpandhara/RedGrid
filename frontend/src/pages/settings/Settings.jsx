@@ -11,6 +11,8 @@ import toast from "react-hot-toast";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
+import DigitalIDCard from "../../components/donor/DigitalIDCard";
+
 const Settings = () => {
   const { user: dbUser, checkUser } = useAuthStore();
   const { user: clerkUser } = useUser();
@@ -18,6 +20,7 @@ const Settings = () => {
   const { getToken } = useAuth(); 
   
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('profile');
   const containerRef = useRef(null);
   const saveBtnRef = useRef(null);
 
@@ -249,6 +252,42 @@ const Settings = () => {
         </div>
       </div>
 
+      {/* TABS HEADER */}
+      <div className="flex items-center gap-4 mb-8 border-b border-white/5 pb-1 overflow-x-auto no-scrollbar whitespace-nowrap">
+        <button
+            onClick={() => setActiveTab('profile')}
+            className={`pb-3 px-2 text-sm font-bold uppercase tracking-wider transition-all relative ${
+                activeTab === 'profile' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+        >
+            Profile Settings
+            {activeTab === 'profile' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
+        </button>
+        
+        {dbUser?.role === 'donor' && (
+            <button
+                onClick={() => setActiveTab('digital-id')}
+                className={`pb-3 px-2 text-sm font-bold uppercase tracking-wider transition-all relative ${
+                    activeTab === 'digital-id' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+            >
+                Digital ID Card
+                {activeTab === 'digital-id' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
+            </button>
+        )}
+      </div>
+
+      {activeTab === 'digital-id' ? (
+        <div className="animate-enter max-w-md mx-auto py-12">
+             <DigitalIDCard />
+             <div className="mt-8 bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl text-center">
+                <p className="text-zinc-400 text-sm">
+                    This Digital ID serves as your official donor verification. 
+                    Show this QR code to hospital staff when you arrive for a donation.
+                </p>
+             </div>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
         
         {/* --- PERSONAL INFO CARD --- */}
@@ -394,7 +433,47 @@ const Settings = () => {
              </div>
            </section>
         )}
+
+        {/* LOCATION SECTION */}
+            <section className="animate-enter bg-zinc-900/40 border border-white/5 backdrop-blur-sm rounded-2xl md:rounded-3xl overflow-hidden shadow-xl transition-transform duration-300 hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-black/50">
+              <div className="px-6 py-4 md:px-8 md:py-6 border-b border-white/5 bg-zinc-900/60 flex items-center gap-3">
+                 <div className="p-2 bg-green-900/30 text-green-500 rounded-lg shrink-0">
+                   <MapPin size={18} />
+                 </div>
+                 <h2 className="text-base md:text-lg font-bold text-white">Location Details</h2>
+              </div>
+              <div className="p-5 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
+                 <InputGroup label="Address Line" name="address" value={formData.address} onChange={handleChange} className="md:col-span-2" />
+                 <InputGroup label="City" name="city" value={formData.city} onChange={handleChange} />
+                 <InputGroup label="State" name="state" value={formData.state} onChange={handleChange} />
+                 <InputGroup label="Zip Code" name="zipCode" value={formData.zipCode} onChange={handleChange} icon={<MapPin size={14}/>} />
+                 
+                 {/* DEBUG: Coordinates Display */}
+                 <div className="md:col-span-2 space-y-2 opacity-75">
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                       <MapPin size={14} className="text-yellow-500"/> Geo-Coordinates (Auto-Detected)
+                    </label>
+                    <div className="flex gap-4 items-center bg-black/40 border border-zinc-800/50 p-3 rounded-xl">
+                        <div className="text-xs text-zinc-400">
+                           Lat: <span className="text-white font-mono">{dbUser?.location?.coordinates?.[1] || '0.00'}</span>
+                        </div>
+                        <div className="w-px h-4 bg-zinc-800" />
+                        <div className="text-xs text-zinc-400">
+                           Lng: <span className="text-white font-mono">{dbUser?.location?.coordinates?.[0] || '0.00'}</span>
+                        </div>
+                        <div className="ml-auto">
+                            {(dbUser?.location?.coordinates?.[0] === 0 && dbUser?.location?.coordinates?.[1] === 0) ? (
+                                <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/20">Invalid Location (Update Address)</span>
+                            ) : (
+                                <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-1 rounded border border-green-500/20">Valid Location</span>
+                            )}
+                        </div>
+                    </div>
+                 </div>
+              </div>
+            </section>
       </form>
+      )}
     </div>
   );
 };

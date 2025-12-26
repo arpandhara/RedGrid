@@ -7,8 +7,19 @@ import { initSocket } from './src/utils/socket.js'; // Import Socket init
 
 dotenv.config();
 
+import User from './src/models/User.js'; // Import User model
+import Request from './src/models/Request.js'; // Import Request model
+
 // Connect to Database
-connectDB();
+connectDB().then(async () => {
+  try {
+    await User.createIndexes();
+    await Request.createIndexes();
+    console.log("Database Indexes Synced");
+  } catch (err) {
+    console.error("Index Sync Error:", err);
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 

@@ -27,12 +27,19 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 
 // --- DASHBOARD PAGES ---
 import DonorDashboard from "./pages/donor/DonorDashboard";
+import DonorHub from './pages/donor/DonorHub'; // New Import
 import HospitalDashboard from "./pages/hospital/HospitalDashboard";
 import OrgDashboard from "./pages/org/OrgDashboard";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/settings/Settings";
 import CreateRequest from "./pages/hospital/CreateRequest";
+import Inventory from "./pages/hospital/Inventory";
+import ManageRequests from "./pages/hospital/ManageRequests";
 import Notifications from "./pages/donor/Notifications";
+import History from "./pages/donor/History";
+
+import VerifyDonation from "./pages/hospital/VerifyDonation";
+import OnboardingWizard from "./components/onboarding/OnboardingWizard";
 
 const AuthWrapper = ({ children }) => {
   const { isSignedIn, getToken } = useAuth();
@@ -53,6 +60,21 @@ const AuthWrapper = ({ children }) => {
 
 // 1. DashboardLayout (Sidebar + Content) - FORCED BLACK
 const DashboardLayout = () => {
+  const { user, isLoading } = useAuthStore();
+  const { isLoaded, isSignedIn } = useUser();
+
+  // 1. Wait for Clerk + MongoDB Sync
+  // Fix Flash: If signed in but no DB user yet, keep loading
+  if (!isLoaded || isLoading || (isSignedIn && !user)) return <SkeletonLayout />;
+
+  // 2. If not signed in (should be handled by Root/AuthWrapper but double check)
+  if (!isSignedIn) return <Navigate to="/login" replace />;
+
+  // 3. STRICT: If not onboarded, force to Onboarding
+  if (user && !user.isOnboarded) {
+      return <Navigate to="/onboarding" replace />;
+  }
+
   return (
     <div className="flex min-h-screen bg-black text-white">
       <Sidebar />
@@ -75,12 +97,20 @@ const LandingLayout = () => (
 );
 
 const Root = () => {
-  const { isSignedIn, user, isLoaded } = useUser();
+  const { isSignedIn, isLoaded } = useUser();
+  const { user: dbUser, isLoading: dbLoading } = useAuthStore();
 
-  if (!isLoaded) return <SkeletonLayout />;
+  if (!isLoaded || dbLoading) return <SkeletonLayout />;
 
   if (isSignedIn) {
-    const role = user?.unsafeMetadata?.role;
+    // If we have Clerk user but no DB user yet, wait or it will eventually load
+    // BUT if we have DB user, check status
+    if (dbUser && !dbUser.isOnboarded) {
+        return <Navigate to="/onboarding" replace />;
+    }
+
+    const role = dbUser?.role || useUser().user?.unsafeMetadata?.role;
+    
     if (role === "hospital")
       return <Navigate to="/hospital/dashboard" replace />;
     if (role === "organization")
@@ -111,12 +141,17 @@ function App() {
             <Route path="/login/*" element={<Login />} />
             <Route path="/register/*" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            
+            {/* NEW: Onboarding Route */}
+            <Route path="/onboarding" element={<OnboardingWizard />} />
 
             <Route
               element={isLoaded ? <DashboardLayout /> : <SkeletonLayout />}
             >
               <Route path="/donor/dashboard" element={<DonorDashboard />} />
+              <Route path="/donor/hub" element={<DonorHub />} /> {/* New Route */}
               <Route path="/donor/notifications" element={<Notifications />} />
+              <Route path="/donor/history" element={<History />} />
               <Route
                 path="/hospital/create-request"
                 element={<CreateRequest />}
@@ -125,6 +160,12 @@ function App() {
                 path="/hospital/dashboard"
                 element={<HospitalDashboard />}
               />
+              <Route 
+                path="/hospital/verify-donation" 
+                element={<VerifyDonation />} 
+              />
+              <Route path="/hospital/inventory" element={<Inventory />} />
+              <Route path="/hospital/manage-requests" element={<ManageRequests />} />
               <Route path="/org/dashboard" element={<OrgDashboard />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
