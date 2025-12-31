@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// 1. Create the Transporter
+
 const transporter = nodemailer.createTransport({
   service: 'gmail', 
   host: process.env.SMTP_HOST,
@@ -15,11 +15,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// 2. Define Email Templates
 
-/**
- * Sends a Welcome Email to new users
- */
 export const sendWelcomeEmail = async (email, name, role) => {
   try {
     const subject = 'Welcome to RedGrid - Connected for Life';
@@ -59,9 +55,7 @@ export const sendWelcomeEmail = async (email, name, role) => {
   }
 };
 
-/**
- * Sends a Verification Code (Optional)
- */
+
 export const sendVerificationEmail = async (email, code) => {
   try {
     const subject = 'Your RedGrid Verification Code';
@@ -87,6 +81,30 @@ export const sendVerificationEmail = async (email, code) => {
     return true;
   } catch (error) {
     console.error('Error sending verification email:', error);
+    return false;
+  }
+};
+
+/**
+ * Sends a Generic Email
+ * Useful for notifications, alerts, etc.
+ * @param {string} to - Recipient email
+ * @param {string} subject - Email subject
+ * @param {string} html - HTML content of the email
+ */
+export const sendEmail = async (to, subject, html) => {
+  try {
+    await transporter.sendMail({
+      from: `"RedGrid Notification" <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      html,
+    });
+
+    console.log(`Generic email sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending generic email:', error);
     return false;
   }
 };

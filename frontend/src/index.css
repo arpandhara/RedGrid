@@ -1,43 +1,168 @@
 @import "tailwindcss";
 
+
+@layer utilities {
+  @keyframes float-slow {
+
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+
+    50% {
+      transform: translate(-20px, 20px);
+    }
+  }
+
+  @keyframes pulse-slow {
+
+    0%,
+    100% {
+      opacity: 0.2;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 0.3;
+      transform: scale(1.05);
+    }
+  }
+
+  .animate-float-slow {
+    animation: float-slow 15s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 10s ease-in-out infinite;
+  }
+
+  /* Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary: #E63946;  /* Your Blood Red */
-  --color-dark: #1a1a1a;     /* Deep Black/Grey */
-  --color-light: #f3f4f6;    /* Soft White */
+  --color-primary: #E63946;
+  /* Both Light and Dark variables now point to Black */
+  --color-dark: #000000;
+  --color-light: #000000;
 }
 
-/* 3. Global Styles
-*/
+/* GLOBAL STYLES */
 body {
-  @apply bg-light text-dark transition-colors duration-300;
-  background-color: black;
+  /* Enforce Black Background & White Text Permanently */
+  @apply bg-black text-white;
+  background-color: #000000;
 }
 
-/* Dark mode overrides for body */
-.dark body {
-  @apply bg-gray-950 text-white;
+/* Even if a 'light' class sneaks in, we force black */
+.light body {
+  @apply bg-black text-white;
 }
 
 ::-webkit-scrollbar {
   display: none;
 }
 
-/* For Firefox, IE, and Edge */
-html, body, #root {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-/* Ensure all scrollable containers also hide the bar */
-* {
+html,
+body,
+#root {
+  background-color: #000000;
+  width: 100%;
+  height: 100%;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-/* Custom Text Selection Color */
-::selection {
-  background-color: rgba(230, 57, 70, 0.3); /* Matches --color-primary with opacity */
-  color: inherit;
+* {
+  border-color: #27272a;
+  /* Force dark borders (Zinc-800) */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* --- LEAFLET DARK MODE & CUSTOM MARKERS --- */
+
+/* 1. Dark Mode Popup Override */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background-color: #09090b !important;
+  /* Zinc-950 */
+  color: white !important;
+  border: 1px solid #27272a;
+  /* Zinc-800 */
+  border-radius: 12px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+}
+
+.leaflet-popup-content {
+  margin: 12px !important;
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
+  /* text-sm */
+  line-height: 1.25rem !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: #71717a !important;
+  /* Zinc-500 */
+  padding: 8px !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: #ef4444 !important;
+  /* Red-500 */
+}
+
+/* 2. Custom Pulse Marker */
+.custom-pulse-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulse-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.4);
+  /* Red-500/40 */
+  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.pulse-dot {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  background-color: #ef4444;
+  /* Red-500 */
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes ping {
+
+  75%,
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
 }

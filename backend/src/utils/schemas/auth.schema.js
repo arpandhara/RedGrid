@@ -11,6 +11,7 @@ export const onboardingSchema = z.object({
       address: z.string().optional(),
       city: z.string().optional(),
       state: z.string().optional(),
+      coordinates: z.any().optional(),
     }).optional(),
 
     // Allow these objects to pass through (or define stricter shapes if you prefer)

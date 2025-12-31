@@ -39,22 +39,40 @@ export const clerkWebhook = async (req, res) => {
       const organizationName = unsafe_metadata?.organizationName || null;
       const hospitalName = unsafe_metadata?.hospitalName || null;
 
-      // 1. Create User in Database
-      await User.create({
-        clerkId: id,
-        email: email,
-        firstName: first_name,
-        lastName: last_name,
-        role: role,
-        organizationName: organizationName,
-        hospitalName: hospitalName,
-        isOnboarded: false,
+      // 1. Check if user already exists
+      let user = await User.findOne({ 
+        $or: [{ clerkId: id }, { email: email }] 
       });
-      console.log(`User ${id} created as ${role}`);
 
-      // 2. Send Welcome Email
-      // We don't await this so it doesn't block the webhook response
-      sendWelcomeEmail(email, firstName, role);
+      if (user) {
+        // User exists, update them instead
+        user.clerkId = id; // Ensure clerkId is set
+        user.firstName = firstName;
+        user.lastName = last_name;
+        user.role = role || user.role;
+        // Don't overwrite existing organization/hospital names unless provided
+        if (organizationName) user.organizationName = organizationName;
+        if (hospitalName) user.hospitalName = hospitalName;
+        
+        await user.save();
+        console.log(`User ${id} updated (already existed)`);
+      } else {
+        // 2. Create New User
+        user = await User.create({
+            clerkId: id,
+            email: email,
+            firstName: first_name,
+            lastName: last_name,
+            role: role,
+            organizationName: organizationName,
+            hospitalName: hospitalName,
+            isOnboarded: false,
+        });
+        console.log(`User ${id} created as ${role}`);
+        
+        // 3. Send Welcome Email (only for new users)
+        sendWelcomeEmail(email, firstName, role);
+      }
     }
 
     // --- HANDLE USER UPDATE ---

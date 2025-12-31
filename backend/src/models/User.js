@@ -28,9 +28,12 @@ const userSchema = new mongoose.Schema({
     address: String,
     city: String,
     state: String,
+    type: {
+      type: String, 
+      enum: ['Point'], 
+    },
     coordinates: {
-      lat: Number,
-      lng: Number
+      type: [Number], // [longitude, latitude]
     }
   },
 
@@ -42,9 +45,11 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes
-userSchema.index({ "location.coordinates": "2dsphere" });
+userSchema.index({ "location": "2dsphere" });
 // This index handles the "Time Bomb" feature for temporary events
 userSchema.index({ "orgProfile.accountExpiresAt": 1 }, { expireAfterSeconds: 0 });
+userSchema.index({ "donorProfile.bloodGroup": 1 });
+userSchema.index({ "donorProfile.isAvailable": 1 });
 
 const User = mongoose.model('User', userSchema);
 export default User;

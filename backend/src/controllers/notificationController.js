@@ -1,0 +1,74 @@
+import Notification from '../models/Notification.js';
+
+// @desc    Get all notifications for the logged-in user
+// @route   GET /api/notifications
+export const getMyNotifications = async (req, res) => {
+  try {
+    const notifications = await Notification.find({ recipient: req.user._id })
+      .populate({
+        path: 'relatedRequestId',
+        select: 'patientName bloodGroup unitsNeeded urgency status location acceptedBy',
+        populate: {
+            path: 'requester',
+            select: 'firstName lastName hospitalProfile location'
+        }
+      })
+      .sort({ createdAt: -1 }) // Newest first
+      .limit(50); // Limit to last 50 to prevent overload
+
+    res.status(200).json({ success: true, data: notifications });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Mark a single notification as read
+// @route   PUT /api/notifications/:id/read
+export const markAsRead = async (req, res) => {
+  try {
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, recipient: req.user._id },
+      { isRead: true },
+      { new: true }
+    );
+    res.status(200).json({ success: true, data: notification });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Mark ALL as read
+// @route   PUT /api/notifications/read-all
+export const markAllAsRead = async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { recipient: req.user._id, isRead: false },
+      { isRead: true }
+    );
+    res.status(200).json({ success: true, message: 'All marked as read' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get unread notification count
+// @route   GET /api/notifications/unread-count
+export const getUnreadCount = async (req, res) => {
+  try {
+    const count = await Notification.countDocuments({ recipient: req.user._id, isRead: false });
+    res.status(200).json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Delete ALL notifications (Clear)
+// @route   DELETE /api/notifications
+export const deleteAllNotifications = async (req, res) => {
+  try {
+    await Notification.deleteMany({ recipient: req.user._id });
+    res.status(200).json({ success: true, message: 'Notifications cleared' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

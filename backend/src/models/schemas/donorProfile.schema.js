@@ -20,6 +20,24 @@ export const donorProfileSchema = new mongoose.Schema({
   // --- NEW FIELDS FOR COMMUNICABLE DISEASES ---
   hasCommunicableDisease: { type: Boolean, default: false },
   communicableDiseaseName: { type: String, default: null },
-  fitnessCertificateUrl: { type: String, default: null } // Stores the Supabase URL
+  communicableDiseaseName: { type: String, default: null },
+  fitnessCertificateUrl: { type: String, default: null }, // Stores the Supabase URL
+
+  // --- GAMIFICATION ---
+  badges: [{
+      code: String, // e.g., 'FIRST_DROP', 'LIFE_SAVER'
+      name: String,
+      description: String,
+      icon: String, // lucide icon name
+      earnedAt: { type: Date, default: Date.now }
+  }],
+
+  // --- POINTS & REWARDS ---
+  points: { type: Number, default: 0 },
+  pointsHistory: [{
+      reason: String, // e.g., 'Donation Verified', 'Referral'
+      change: Number, // +50, -20
+      date: { type: Date, default: Date.now }
+  }]
 
 }, { _id: false });

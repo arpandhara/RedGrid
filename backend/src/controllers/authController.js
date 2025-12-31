@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import { sendVerificationEmail } from '../utils/emailService.js';
 import { clerkClient } from '@clerk/clerk-sdk-node';
+import crypto from 'crypto';
 
 // @desc    Onboard User (Deep Profile Update)
 // @route   POST /api/auth/onboarding
@@ -25,9 +26,87 @@ export const onboardUser = async (req, res) => {
       firstName,
       lastName,
       phone,
-      location,
       isOnboarded: true
     };
+
+    // === FIX: Handle Location Transformation (GeoJSON) ===
+    if (location) {
+       updateData.location = { ...location };
+       // Sanitize: Remove coordinates initially to prevent CastError if they are in invalid format
+       delete updateData.location.coordinates;
+
+       // Ensure coordinates exist and are valid numbers
+       if (location.coordinates) {
+         const coords = location.coordinates;
+         let validCoords = null;
+
+       // Handle { lat, lng } object from frontend
+         if (typeof coords === 'object' && !Array.isArray(coords)) {
+            const lng = Number(coords.lng);
+            const lat = Number(coords.lat);
+            if (!isNaN(lng) && !isNaN(lat)) {
+               // Check if it's the default 0,0 which implies no detection
+               if (lng !== 0 || lat !== 0) {
+                   validCoords = [lng, lat];
+               }
+            }
+         } 
+         // Handle [lng, lat] array
+         else if (Array.isArray(coords) && coords.length === 2) {
+             if (coords[0] !== 0 || coords[1] !== 0) {
+                validCoords = coords;
+             }
+         }
+
+         if (validCoords) {
+             updateData.location.coordinates = validCoords;
+             updateData.location.type = 'Point';
+         } 
+       }
+       
+       // --- AUTO-GEOCODING FALLBACK ---
+       // If valid coordinates were NOT found but we have address details
+       if (!updateData.location.coordinates && (location.address || location.city)) {
+          try {
+             const addr = location.address || "";
+             const city = location.city || "";
+             const state = location.state || "";
+             const fullAddress = `${addr}, ${city}, ${state}`.replace(/^, /, "").trim();
+
+             if (fullAddress.length > 3) {
+                 console.log(`[Onboarding] Attempting to geocode: "${fullAddress}"`);
+                 
+                 const fetchCoordinates = async (query) => {
+                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+                    const res = await fetch(url, { headers: { 'User-Agent': 'BloodDonationApp/1.0' } });
+                    if (res.ok) return await res.json();
+                    return [];
+                 };
+
+                 let results = await fetchCoordinates(fullAddress);
+
+                 if (!results || results.length === 0) {
+                     const fallbackQuery = `${city}, ${state}`;
+                     if (fallbackQuery.length > 3) {
+                        results = await fetchCoordinates(fallbackQuery);
+                     }
+                 }
+
+                 if (results && results.length > 0) {
+                     const { lat, lon } = results[0]; 
+                     if (lat && lon) {
+                         updateData.location.coordinates = [parseFloat(lon), parseFloat(lat)]; 
+                         updateData.location.type = "Point";
+                         console.log(`[Onboarding] Geocoded to [${lon}, ${lat}]`);
+                     }
+                 }
+             }
+          } catch (geoError) {
+              console.error("[Onboarding] Geocoding failed:", geoError.message);
+          }
+       }
+    }
+    // ====================================================
 
     // Attach Role-Specific Data to the correct Sub-Schema
     if (role === 'donor' && donorData) {
@@ -89,19 +168,19 @@ export const forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      // For security, don't reveal if user doesn't exist, but for dev we can return 404
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6-digit OTP (Secure)
+    const otp = crypto.randomInt(100000, 1000000).toString();
 
     // Save OTP to DB (Expires in 15 mins)
-    user.resetPasswordToken = otp; // In production, consider hashing this
-    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins
+    user.resetPasswordToken = otp; 
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; 
     await user.save();
 
-    //Send Email
+    // Send Email
     const emailSent = await sendVerificationEmail(user.email, otp);
 
     if (!emailSent) {
@@ -125,7 +204,7 @@ export const resetPassword = async (req, res) => {
     const user = await User.findOne({
       email,
       resetPasswordToken: otp,
-      resetPasswordExpires: { $gt: Date.now() } // Ensure not expired
+      resetPasswordExpires: { $gt: Date.now() } 
     });
 
     if (!user) {
@@ -133,12 +212,11 @@ export const resetPassword = async (req, res) => {
     }
 
     // Update Password in Clerk
-    // This updates the user's password securely in Clerk's database
     await clerkClient.users.updateUser(user.clerkId, {
       password: newPassword
     });
 
-    //  Clear OTP fields
+    // Clear OTP fields
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
     await user.save();
@@ -146,9 +224,7 @@ export const resetPassword = async (req, res) => {
     res.status(200).json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     console.error('Reset Password Error:', error);
-    // Handle specific Clerk password errors
     const errorMessage = error.errors ? error.errors[0].message : error.message;
     res.status(500).json({ success: false, message: errorMessage });
   }
 };
-
