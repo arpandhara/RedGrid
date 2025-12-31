@@ -20,7 +20,11 @@ const Notifications = () => {
   // 1. Fetch Notifications on Load
   useEffect(() => {
     fetchNotifications();
-    if (markRead) markRead(); // Clear badge on visit
+    if (markRead) markRead(); // Clear badge locally
+    
+    // Silently mark all as read on backend to persist badge clearing
+    // We don't update local 'notifications' state so user still sees what WAS new
+    api.put('/notifications/read-all').catch(err => console.error("Failed to mark read in bg", err));
   }, []);
 
   // 2. Listen for Real-Time Updates

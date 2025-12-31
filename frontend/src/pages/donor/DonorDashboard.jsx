@@ -10,7 +10,8 @@ import {
     Search, User, PlayCircle, ShieldCheck, Gift
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
 import toast from 'react-hot-toast';
 
 // Components
@@ -319,7 +320,15 @@ const DonorDashboard = () => {
                             scrollWheelZoom={false}
                         >
                             <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-                            <Marker position={[userLocation[1], userLocation[0]]} />
+                            <Marker 
+                                position={[userLocation[1], userLocation[0]]} 
+                                icon={L.divIcon({
+                                    className: 'custom-pulse-marker',
+                                    html: `<div class="pulse-ring"></div><div class="pulse-dot"></div>`,
+                                    iconSize: [20, 20],
+                                    iconAnchor: [10, 10]
+                                })}
+                            />
                         </MapContainer>
                         
                         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent opacity-60 pointer-events-none" />

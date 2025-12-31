@@ -107,7 +107,7 @@ const OnboardingWizard = () => {
             city: address.city || address.town || address.village || "",
             state: address.state || "",
             zipCode: address.postcode || "",
-            zipCode: address.postcode || "",
+
             address: `${address.road || ""}, ${address.suburb || ""}`,
             latitude: latitude,
             longitude: longitude

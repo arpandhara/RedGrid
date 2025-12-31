@@ -76,10 +76,21 @@ const MapModal = ({ isOpen, onClose, location, hospitalName }) => {
                         scrollWheelZoom={false}
                      >
                         <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+                            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                         />
-                        <Marker position={[lat, lng]}>
+                        <Marker 
+                            position={[lat, lng]}
+                            icon={L.divIcon({
+                                className: 'bg-transparent',
+                                html: `<div style="background-color: #ef4444; width: 40px; height: 40px; border-radius: 50%; border: 4px solid rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);">
+                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17a2 2 0 0 1-2 2h-2v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>
+                                       </div>`,
+                                iconSize: [40, 40],
+                                iconAnchor: [20, 40],
+                                popupAnchor: [0, -40]
+                            })}
+                        >
                             <Popup>
                                 <div className='font-bold text-sm'>
                                     {hospitalName}
@@ -94,7 +105,7 @@ const MapModal = ({ isOpen, onClose, location, hospitalName }) => {
                         href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="absolute bottom-4 right-4 z-[500] bg-white text-black text-xs font-bold px-4 py-2 rounded-full shadow-lg hover:bg-zinc-200 transition-colors flex items-center gap-2"
+                        className="absolute bottom-4 right-4 z-[500] bg-zinc-900 border border-zinc-700 text-white hover:bg-zinc-800 text-xs font-bold px-4 py-2 rounded-full shadow-lg transition-colors flex items-center gap-2"
                      >
                         Open in Google Maps <ArrowUpRight size={12} />
                      </a>

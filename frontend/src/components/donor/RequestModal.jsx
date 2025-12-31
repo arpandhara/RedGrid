@@ -97,10 +97,20 @@ const RequestModal = ({ isOpen, onClose, target, onViewTicket }) => {
                     <div className="h-48 w-full relative z-0">
                         <MapContainer center={position} zoom={13} scrollWheelZoom={false} className="h-full w-full">
                             <TileLayer
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
                                 url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                             />
-                            <Marker position={position} />
+                            <Marker 
+                                position={position} 
+                                icon={L.divIcon({
+                                    className: 'bg-transparent',
+                                    html: `<div style="background-color: #ef4444; width: 40px; height: 40px; border-radius: 50%; border: 4px solid rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);">
+                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                           </div>`,
+                                    iconSize: [40, 40],
+                                    iconAnchor: [20, 40]
+                                })}
+                            />
                         </MapContainer>
                         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
                     </div>
