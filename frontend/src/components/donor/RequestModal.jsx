@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useAuthStore from '../../store/useAuthStore';
 import { X, Send, Check, XCircle, MapPin, Droplet, User as UserIcon, Activity, Calendar } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -18,11 +19,14 @@ L.Icon.Default.mergeOptions({
     shadowUrl: iconShadow,
 });
 
-const RequestModal = ({ isOpen, onClose, target }) => {
+const RequestModal = ({ isOpen, onClose, target, onViewTicket }) => {
     const [reason, setReason] = useState('');
     const [loading, setLoading] = useState(false);
+    const { user } = useAuthStore();
 
     if (!isOpen || !target) return null;
+
+    const hasAccepted = target.acceptedBy?.some(a => a.donorId === user?._id);
 
     const handleSend = async () => {
         if (!target) return;
@@ -42,7 +46,7 @@ const RequestModal = ({ isOpen, onClose, target }) => {
                 }
                 const res = await api.post('/requests/direct', {
                     recipientId: target?._id,
-                    recipientType: 'User',
+                    recipientType: target?.type === 'hospital' ? 'Hospital' : 'User',
                     bloodGroup: target?.bloodGroup,
                     reason,
                     patientDetails: { name: 'Self/Family' }
@@ -183,14 +187,24 @@ const RequestModal = ({ isOpen, onClose, target }) => {
                                 <XCircle size={18} /> Reject
                             </button>
                         )}
-                        <button 
-                            onClick={handleSend}
-                            disabled={loading}
-                            className={`flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-900/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
-                        >
-                            {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 
-                            <>{isRespondingToRequest ? <Check size={18} /> : <Send size={18} />} {isRespondingToRequest ? 'Accept Request' : 'Send Request'}</>}
-                        </button>
+
+                        {hasAccepted ? (
+                            <button 
+                                onClick={onViewTicket}
+                                className="flex-1 bg-zinc-100 hover:bg-white text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                            >
+                                <Check size={18} /> Accepted (View Ticket)
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={handleSend}
+                                disabled={loading}
+                                className={`flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-900/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 
+                                <>{isRespondingToRequest ? <Check size={18} /> : <Send size={18} />} {isRespondingToRequest ? 'Accept Request' : 'Send Request'}</>}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

@@ -1,5 +1,6 @@
 // backend/src/controllers/inventoryController.js
 import Inventory from '../models/Inventory.js';
+import { getIO } from '../utils/socket.js';
 
 // @desc    Get Inventory by Hospital
 // @route   GET /api/inventory/hospital
@@ -36,6 +37,13 @@ export const updateInventory = async (req, res) => {
 
         item.lastUpdated = Date.now();
         await item.save();
+
+        // Emit Real-time Update
+        const io = getIO();
+        io.to(hospitalId.toString()).emit('inventory_update', {
+            bloodGroup: item.bloodGroup,
+            quantity: item.quantity
+        });
 
         res.status(200).json({ success: true, data: item });
 

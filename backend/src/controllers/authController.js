@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import { sendVerificationEmail } from '../utils/emailService.js';
 import { clerkClient } from '@clerk/clerk-sdk-node';
+import crypto from 'crypto';
 
 // @desc    Onboard User (Deep Profile Update)
 // @route   POST /api/auth/onboarding
@@ -31,32 +32,78 @@ export const onboardUser = async (req, res) => {
     // === FIX: Handle Location Transformation (GeoJSON) ===
     if (location) {
        updateData.location = { ...location };
+       // Sanitize: Remove coordinates initially to prevent CastError if they are in invalid format
+       delete updateData.location.coordinates;
 
        // Ensure coordinates exist and are valid numbers
        if (location.coordinates) {
          const coords = location.coordinates;
          let validCoords = null;
 
-         // Handle { lat, lng } object from frontend
+       // Handle { lat, lng } object from frontend
          if (typeof coords === 'object' && !Array.isArray(coords)) {
             const lng = Number(coords.lng);
             const lat = Number(coords.lat);
             if (!isNaN(lng) && !isNaN(lat)) {
-               validCoords = [lng, lat];
+               // Check if it's the default 0,0 which implies no detection
+               if (lng !== 0 || lat !== 0) {
+                   validCoords = [lng, lat];
+               }
             }
          } 
          // Handle [lng, lat] array
          else if (Array.isArray(coords) && coords.length === 2) {
-             validCoords = coords;
+             if (coords[0] !== 0 || coords[1] !== 0) {
+                validCoords = coords;
+             }
          }
 
          if (validCoords) {
              updateData.location.coordinates = validCoords;
              updateData.location.type = 'Point';
-         } else {
-             // If coordinates are invalid, DO NOT set location to avoid breaking index
-             delete updateData.location; 
-         }
+         } 
+       }
+       
+       // --- AUTO-GEOCODING FALLBACK ---
+       // If valid coordinates were NOT found but we have address details
+       if (!updateData.location.coordinates && (location.address || location.city)) {
+          try {
+             const addr = location.address || "";
+             const city = location.city || "";
+             const state = location.state || "";
+             const fullAddress = `${addr}, ${city}, ${state}`.replace(/^, /, "").trim();
+
+             if (fullAddress.length > 3) {
+                 console.log(`[Onboarding] Attempting to geocode: "${fullAddress}"`);
+                 
+                 const fetchCoordinates = async (query) => {
+                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+                    const res = await fetch(url, { headers: { 'User-Agent': 'BloodDonationApp/1.0' } });
+                    if (res.ok) return await res.json();
+                    return [];
+                 };
+
+                 let results = await fetchCoordinates(fullAddress);
+
+                 if (!results || results.length === 0) {
+                     const fallbackQuery = `${city}, ${state}`;
+                     if (fallbackQuery.length > 3) {
+                        results = await fetchCoordinates(fallbackQuery);
+                     }
+                 }
+
+                 if (results && results.length > 0) {
+                     const { lat, lon } = results[0]; 
+                     if (lat && lon) {
+                         updateData.location.coordinates = [parseFloat(lon), parseFloat(lat)]; 
+                         updateData.location.type = "Point";
+                         console.log(`[Onboarding] Geocoded to [${lon}, ${lat}]`);
+                     }
+                 }
+             }
+          } catch (geoError) {
+              console.error("[Onboarding] Geocoding failed:", geoError.message);
+          }
        }
     }
     // ====================================================
@@ -125,7 +172,8 @@ export const forgotPassword = async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6-digit OTP (Secure)
+    const otp = crypto.randomInt(100000, 1000000).toString();
 
     // Save OTP to DB (Expires in 15 mins)
     user.resetPasswordToken = otp; 

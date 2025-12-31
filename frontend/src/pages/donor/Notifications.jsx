@@ -28,14 +28,27 @@ const Notifications = () => {
     if (!socket) return;
 
     const handleNewNotification = (data) => {
-        // Re-fetch to get populated data (requester details etc)
-        fetchNotifications();
+        console.log("Socket: Notification received, refreshing list...", data);
+        // Safety buffer: Wait 500ms to ensure DB write is propagated securely
+        setTimeout(() => {
+            fetchNotifications();
+        }, 500);
     };
 
     socket.on('notification', handleNewNotification);
+    
+    // CRITICAL FIX: Also listen for global status updates (e.g. someone else accepted a request)
+    // This ensures the "Accept" button turns into "Fulfilled" instantly for other donors
+    socket.on('request_update', () => {
+        console.log("Socket: Global Request Update. Refreshing notifications...");
+        setTimeout(() => {
+            fetchNotifications();
+        }, 500);
+    });
 
     return () => {
         socket.off('notification', handleNewNotification);
+        socket.off('request_update');
     };
   }, [socket]);
 
@@ -115,14 +128,34 @@ const Notifications = () => {
           </p>
         </div>
         
-        {notifications.some(n => !n.isRead) && (
-          <button 
-            onClick={handleMarkAllRead}
-            className="text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg flex items-center gap-2 transition-all"
-          >
-            <Check className="w-3 h-3" /> Mark all read
-          </button>
-        )}
+        <div className="flex gap-2">
+            {notifications.some(n => !n.isRead) && (
+              <button 
+                onClick={handleMarkAllRead}
+                className="text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg flex items-center gap-2 transition-all"
+              >
+                <Check className="w-3 h-3" /> Mark read
+              </button>
+            )}
+            
+            {notifications.length > 0 && (
+                <button 
+                    onClick={async () => {
+                        // Instant Clear (No Alert)
+                        try {
+                            await api.delete('/notifications');
+                            setNotifications([]);
+                            toast.success('Notifications cleared');
+                        } catch (err) {
+                            toast.error('Failed to clear');
+                        }
+                    }}
+                    className="text-xs font-medium text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg flex items-center gap-2 transition-all"
+                >
+                    <X className="w-3 h-3" /> Clear All
+                </button>
+            )}
+        </div>
       </div>
 
       {loading ? (
@@ -250,12 +283,23 @@ const Notifications = () => {
                         {n.relatedRequestId && n.type === 'blood_request' && (
                             <>
                                 {n.relatedRequestId.status === 'pending' && (
-                                    <button
-                                        onClick={() => handleAcceptRequest(n.relatedRequestId._id, n._id)}
-                                        className="flex-1 sm:flex-none bg-white hover:bg-zinc-200 text-black text-xs px-4 py-2 rounded-lg font-bold transition-all transform active:scale-95 shadow-lg shadow-white/5 flex items-center justify-center gap-2"
-                                    >
-                                        <Check size={14} strokeWidth={3} /> Accept
-                                    </button>
+                                    <>
+                                        {n.relatedRequestId.acceptedBy?.some(entry => entry.donorId === user._id) ? (
+                                            <button
+                                                onClick={() => setSelectedTicket(n.relatedRequestId)}
+                                                className="bg-zinc-100 hover:bg-white text-black text-xs px-4 py-2 rounded-lg font-bold transition-all transform active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                                            >
+                                                <Check size={14} strokeWidth={3} /> Accepted (View Ticket)
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleAcceptRequest(n.relatedRequestId._id, n._id)}
+                                                className="flex-1 sm:flex-none bg-white hover:bg-zinc-200 text-black text-xs px-4 py-2 rounded-lg font-bold transition-all transform active:scale-95 shadow-lg shadow-white/5 flex items-center justify-center gap-2"
+                                            >
+                                                <Check size={14} strokeWidth={3} /> Accept
+                                            </button>
+                                        )}
+                                    </>
                                 )}
                                 
                                 {n.relatedRequestId.status === 'accepted' && (

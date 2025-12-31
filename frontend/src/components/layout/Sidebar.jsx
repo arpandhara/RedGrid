@@ -22,7 +22,8 @@ import {
   MapPin,
   ChevronRight,
   Loader2,
-  Globe // New Icon
+  Globe, // New Icon
+  Gift // New Icon
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -49,6 +50,7 @@ const Sidebar = () => {
       { icon: LayoutDashboard, label: "Dashboard", path: "/donor/dashboard" },
       { icon: Globe, label: "Donor Hub", path: "/donor/hub" }, // New Hub Link
       { icon: Bell, label: "Notifications", path: "/donor/notifications" }, // Added Notification Link
+      { icon: Gift, label: "My Rewards", path: "/donor/rewards" }, // New Rewards Link
       { icon: History, label: "My History", path: "/donor/history" },
       { icon: MapPin, label: "Nearby Camps", path: "/donor/camps" },
     ],
@@ -56,6 +58,7 @@ const Sidebar = () => {
       { icon: LayoutDashboard, label: "Dashboard", path: "/hospital/dashboard" },
       { icon: ClipboardList, label: "New Request", path: "/hospital/create-request" },
       { icon: FolderKanban, label: "Manage Requests", path: "/hospital/manage-requests" },
+      { icon: Bell, label: "Notifications", path: "/hospital/notifications" },
       { icon: Droplet, label: "Inventory", path: "/hospital/inventory" },
     ],
     organization: [
@@ -223,7 +226,7 @@ const SidebarItem = ({ to, icon: Icon, label, onClick, badge }) => (
             />
             <span className="relative z-10 flex-1">{label}</span>
             {badge > 0 && (
-                <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                <span className="bg-red-600 text-white text-[10px] font-bold h-5 min-w-[1.25rem] px-1.5 flex items-center justify-center rounded-full shadow-lg shadow-red-900/50">
                     {badge > 9 ? '9+' : badge}
                 </span>
             )}

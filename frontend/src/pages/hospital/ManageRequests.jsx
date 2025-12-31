@@ -29,11 +29,17 @@ const RequestStatusBadge = ({ status }) => {
     }
 };
 
+import useAuthStore from '../../store/useAuthStore'; // Import Auth Store for ID check
+
+// ... existing imports ...
+
 const ManageRequests = () => {
+    const { user } = useAuthStore(); // Get current user
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
+    const [processingId, setProcessingId] = useState(null); // Track which ID is updating
     const [activityData, setActivityData] = useState([]);
 
     const fetchRequests = async () => {
@@ -86,16 +92,71 @@ const ManageRequests = () => {
 
     const handleCancel = async (id) => {
         if (!window.confirm("Are you sure you want to cancel this request?")) return;
+        setProcessingId(id);
         try {
             const res = await api.put(`/requests/${id}/cancel`);
             if (res.data.success) {
                 toast.success("Request cancelled");
-                fetchRequests(); // Turn this into local update optimization later
+                fetchRequests();
             }
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to cancel");
+        } finally {
+            setProcessingId(null);
         }
     };
+
+    const handleAccept = async (id) => {
+        setProcessingId(id);
+        try {
+            const res = await api.put(`/requests/${id}/accept`);
+            if (res.data.success) {
+                toast.success("Request Accepted!");
+                fetchRequests();
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to accept");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleReject = async (id) => {
+         if (!window.confirm("Reject this request?")) return;
+         setProcessingId(id);
+         try {
+             const res = await api.put(`/requests/${id}/reject`);
+             if (res.data.success) {
+                 toast.success("Request Rejected");
+                 fetchRequests();
+             }
+         } catch (error) {
+             toast.error(error.response?.data?.message || "Failed to reject");
+         } finally {
+             setProcessingId(null);
+         }
+    };
+
+    const handleFulfill = async (id, isIncoming) => {
+        const msg = isIncoming 
+            ? "Mark this request as fulfilled? This will deduct blood units from your inventory."
+            : "Mark this request as done? This means you have received the blood.";
+            
+        if (!window.confirm(msg)) return;
+        
+        setProcessingId(id);
+        try {
+            const res = await api.put(`/requests/${id}/fulfill`);
+            if (res.data.success) {
+                toast.success(isIncoming ? "Request Fulfilled & Inventory Updated" : "Request Marked as Done");
+                fetchRequests();
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to fulfill");
+        } finally {
+            setProcessingId(null);
+        }
+   };
 
     const filteredRequests = requests.filter(r => 
         r.patientName.toLowerCase().includes(search.toLowerCase()) ||
@@ -189,7 +250,8 @@ const ManageRequests = () => {
                     <table className="w-full text-left text-sm text-zinc-400">
                         <thead className="bg-zinc-900/50 text-xs uppercase font-bold text-zinc-500">
                             <tr>
-                                <th className="px-6 py-4">Patient</th>
+                                <th className="px-6 py-4">Type</th>
+                                <th className="px-6 py-4">Patient / Requester</th>
                                 <th className="px-6 py-4">Blood Group</th>
                                 <th className="px-6 py-4">Date</th>
                                 <th className="px-6 py-4">Status</th>
@@ -197,9 +259,29 @@ const ManageRequests = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800">
-                            {filteredRequests.map((req) => (
+                            {filteredRequests.map((req) => {
+                                const isIncoming = req.recipient?.toString() === user?._id || req.recipient === user?._id;
+                                const isUpdating = processingId === req._id;
+
+                                return (
                                 <tr key={req._id} className="hover:bg-white/5 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-white">{req.patientName}</td>
+                                    <td className="px-6 py-4">
+                                        {isIncoming ? (
+                                            <span className="text-xs font-bold bg-blue-500/10 text-blue-500 px-2 py-1 rounded border border-blue-500/20">INCOMING</span>
+                                        ) : (
+                                            <span className="text-xs font-bold bg-zinc-800 text-zinc-400 px-2 py-1 rounded">OUTGOING</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 font-medium text-white">
+                                        <div>{req.patientName}</div>
+                                        {isIncoming && req.requester && (
+                                            <div className="text-xs text-zinc-500 mt-1">
+                                                from: {req.requester.firstName} {req.requester.lastName}
+                                                <br/>
+                                                <span className="text-zinc-600">{req.requester.phone || 'No Phone'}</span>
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4">
                                         <span className="font-bold text-white bg-zinc-800 px-2 py-1 rounded">{req.bloodGroup}</span>
                                         <span className="ml-2 text-xs">{req.unitsNeeded} Units</span>
@@ -212,23 +294,68 @@ const ManageRequests = () => {
                                         <RequestStatusBadge status={req.status} />
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        {(req.status === 'pending' || req.status === 'accepted') && (
+                                        {/* INCOMING PENDING */}
+                                        {isIncoming && req.status === 'pending' && (
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button 
+                                                    onClick={() => handleAccept(req._id)}
+                                                    disabled={isUpdating}
+                                                    className="bg-green-600 hover:bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[70px] flex justify-center"
+                                                >
+                                                    {isUpdating ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Accept'}
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleReject(req._id)}
+                                                    disabled={isUpdating}
+                                                    className="bg-zinc-800 hover:bg-red-500/20 hover:text-red-500 text-zinc-400 text-xs font-bold px-3 py-1.5 rounded transition-colors border border-transparent hover:border-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* INCOMING ACCEPTED (FULFILL) */}
+                                        {isIncoming && req.status === 'accepted' && (
                                             <button 
-                                                onClick={() => handleCancel(req._id)}
-                                                className="text-xs text-red-500 hover:text-red-400 font-bold hover:underline"
+                                                onClick={() => handleFulfill(req._id)}
+                                                disabled={isUpdating}
+                                                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-end ml-auto gap-2"
                                             >
-                                                Cancel Request
+                                                {isUpdating ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle2 size={12} />}
+                                                Mark as Done
                                             </button>
                                         )}
-                                        {(req.status === 'fulfilled' || req.status === 'cancelled') && (
+
+                                        {/* OUTGOING PENDING / ACCEPTED */}
+                                        {!isIncoming && (req.status === 'pending' || req.status === 'accepted') && (
+                                            <div className="flex flex-col gap-2 w-full">
+                                                <button 
+                                                    onClick={() => handleFulfill(req._id)}
+                                                    disabled={isUpdating}
+                                                    className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full border border-zinc-700"
+                                                >
+                                                    {isUpdating && processingId === req._id ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle2 size={12} />}
+                                                    Mark as Done
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleCancel(req._id)}
+                                                    disabled={isUpdating}
+                                                    className="text-xs text-red-500 hover:text-red-400 font-bold hover:underline disabled:opacity-50 flex items-center justify-center w-full"
+                                                >
+                                                   Cancel Request
+                                                </button>
+                                            </div>
+                                        )}
+                                        
+                                        {(req.status === 'fulfilled' || req.status === 'cancelled' || req.status === 'rejected') && (
                                             <span className="text-zinc-600 text-xs">-</span>
                                         )}
                                     </td>
                                 </tr>
-                            ))}
+                            )})}
                             {filteredRequests.length === 0 && (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center text-zinc-500">
+                                    <td colSpan="6" className="px-6 py-12 text-center text-zinc-500">
                                         No requests found matching your filters.
                                     </td>
                                 </tr>

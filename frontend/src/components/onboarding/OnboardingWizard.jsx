@@ -51,6 +51,8 @@ const OnboardingWizard = () => {
     city: "",
     state: "",
     zipCode: "",
+    latitude: 0,
+    longitude: 0,
     // Donor - Health
     bloodGroup: "",
     dob: "",
@@ -105,7 +107,10 @@ const OnboardingWizard = () => {
             city: address.city || address.town || address.village || "",
             state: address.state || "",
             zipCode: address.postcode || "",
+            zipCode: address.postcode || "",
             address: `${address.road || ""}, ${address.suburb || ""}`,
+            latitude: latitude,
+            longitude: longitude
           }));
           toast.success("Location detected!");
         } catch (error) {
@@ -188,7 +193,10 @@ const OnboardingWizard = () => {
           city: formData.city,
           state: formData.state,
           zipCode: formData.zipCode,
-          coordinates: { lat: 0, lng: 0 },
+          coordinates: { 
+            lat: formData.latitude, 
+            lng: formData.longitude 
+          },
         },
         donorData:
           role === "donor"

@@ -1,6 +1,6 @@
 // backend/src/routes/requestRoutes.js
 import express from 'express';
-import { createRequest, acceptRequest, getHospitalRequests, cancelRequest, createDirectRequest, getActiveRequests, getUserRequests, rejectRequest } from '../controllers/requestController.js';
+import { createRequest, acceptRequest, getHospitalRequests, cancelRequest, createDirectRequest, getActiveRequests, getUserRequests, rejectRequest, fulfillRequest } from '../controllers/requestController.js';
 import { protect, authorize, loadUser } from '../middlewares/authMiddleware.js'; 
 
 const router = express.Router();
@@ -21,10 +21,15 @@ router.get('/hospital', protect, authorize('hospital'), getHospitalRequests);
 router.get('/user', protect, loadUser, getUserRequests);
 
 // Cancel Request
+router.put('/:id/cancel', protect, authorize('hospital', 'organization'), cancelRequest);
+
 // Reject Request
 router.put('/:id/reject', protect, loadUser, rejectRequest);
 
 // Donors can accept requests
 router.put('/:id/accept', protect, loadUser, acceptRequest);
+
+// Fulfill Request (Hospital marks done + inventory decrement)
+router.put('/:id/fulfill', protect, authorize('hospital', 'organization'), fulfillRequest);
 
 export default router;

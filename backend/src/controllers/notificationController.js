@@ -7,7 +7,7 @@ export const getMyNotifications = async (req, res) => {
     const notifications = await Notification.find({ recipient: req.user._id })
       .populate({
         path: 'relatedRequestId',
-        select: 'patientName bloodGroup unitsNeeded urgency status location',
+        select: 'patientName bloodGroup unitsNeeded urgency status location acceptedBy',
         populate: {
             path: 'requester',
             select: 'firstName lastName hospitalProfile location'
@@ -46,6 +46,28 @@ export const markAllAsRead = async (req, res) => {
       { isRead: true }
     );
     res.status(200).json({ success: true, message: 'All marked as read' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get unread notification count
+// @route   GET /api/notifications/unread-count
+export const getUnreadCount = async (req, res) => {
+  try {
+    const count = await Notification.countDocuments({ recipient: req.user._id, isRead: false });
+    res.status(200).json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Delete ALL notifications (Clear)
+// @route   DELETE /api/notifications
+export const deleteAllNotifications = async (req, res) => {
+  try {
+    await Notification.deleteMany({ recipient: req.user._id });
+    res.status(200).json({ success: true, message: 'Notifications cleared' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

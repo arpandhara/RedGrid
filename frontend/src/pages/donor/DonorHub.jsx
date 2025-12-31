@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Search, MapPin, Heart, Droplet, 
     Filter, ArrowRight, Star, ShieldCheck, 
-    Navigation, Phone, Mail, Award
+    Navigation, Phone, Mail, Award, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../api/axios';
@@ -83,8 +83,11 @@ const DonorHub = () => {
         // Socket Listeners for Real-time Updates
         if (socket) {
             socket.on('request_update', () => {
-                if (mode === 'donate') fetchFeed();
-                if (mode === 'requests' || mode === 'tickets') fetchMyRequests();
+                console.log("Socket: Global update received. Refreshing feed...");
+                setTimeout(() => {
+                    if (mode === 'donate') fetchFeed();
+                    if (mode === 'requests' || mode === 'tickets') fetchMyRequests();
+                }, 500); // 500ms delay to ensure DB consistency
             });
 
             socket.on('new_request_broadcast', () => {
@@ -149,28 +152,40 @@ const DonorHub = () => {
                         </h1>
                     </div>
 
-                    {/* Premium Animated Toggle */}
                     <div className="bg-zinc-900/50 p-1.5 rounded-full flex relative w-full md:w-auto min-w-[400px]">
-                         <motion.div 
-                            className="absolute top-1.5 bottom-1.5 rounded-full bg-zinc-800 shadow-lg border border-white/5"
-                            layoutId="activeTab"
-                            initial={false}
-                            animate={{ 
-                                x: mode === 'donate' ? '0%' : mode === 'find' ? '100%' : mode === 'requests' ? '200%' : '300%',
-                                width: '25%' 
-                            }}
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                         />
                          {['donate', 'find', 'requests', 'tickets'].map((tab) => (
                              <button 
                                 key={tab}
                                 onClick={() => setMode(tab)}
                                 className={`flex-1 relative z-10 text-xs font-bold py-2.5 px-6 rounded-full text-center transition-all uppercase tracking-wider ${mode === tab ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                              >
+                                {mode === tab && (
+                                    <motion.div 
+                                        className="absolute inset-0 bg-zinc-800 rounded-full shadow-lg border border-white/5 -z-10"
+                                        layoutId="activeTab"
+                                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                    />
+                                )}
                                 {tab}
                              </button>
                          ))}
                     </div>
+
+                    {/* New Scan Button */}
+                    <button 
+                        onClick={() => navigate('/donor/scan')}
+                        className="bg-white hover:bg-zinc-200 text-black p-3 rounded-full transition-colors shadow-lg active:scale-95 flex items-center gap-2 md:hidden"
+                        title="Scan Ticket"
+                    >
+                         <ShieldCheck size={20} />
+                    </button>
+                    <button 
+                        onClick={() => navigate('/donor/scan')}
+                        className="hidden md:flex bg-white hover:bg-zinc-200 text-black px-6 py-3 rounded-full font-bold transition-all shadow-lg active:scale-95 items-center gap-2"
+                    >
+                         <ShieldCheck size={18} />
+                         Scan Ticket
+                    </button>
                 </div>
             </div>
 
@@ -275,7 +290,8 @@ const DonorHub = () => {
                                                     location: opp.location,
                                                     unitsNeeded: opp.unitsNeeded,
                                                     urgency: opp.urgency,
-                                                    patientName: opp.patientName
+                                                    patientName: opp.patientName,
+                                                    acceptedBy: opp.acceptedBy // Pass acceptedBy list
                                                 })}
                                                 className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.1)]"
                                             >
@@ -598,9 +614,13 @@ const DonorHub = () => {
                                                 {/* QR Code */}
                                                 <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center p-2 shadow-inner border border-zinc-200">
                                                      <QRCodeSVG 
-                                                        value={ticket._id} 
+                                                        value={JSON.stringify({
+                                                            donorId: user?._id,
+                                                            requestId: ticket._id,
+                                                            timestamp: Date.now()
+                                                        })} 
                                                         size={80}
-                                                        level="H" 
+                                                        level="M" 
                                                         className="w-full h-full"
                                                      />
                                                 </div>
@@ -625,6 +645,10 @@ const DonorHub = () => {
                 isOpen={!!selectedTarget} 
                 onClose={() => setSelectedTarget(null)} 
                 target={selectedTarget}
+                onViewTicket={() => {
+                    setSelectedTarget(null);
+                    setMode('tickets');
+                }}
             />
         </div>
     );

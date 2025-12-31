@@ -74,10 +74,10 @@ const HospitalDashboard = () => {
         title: 'Donation Verified',
         message: `${data.bloodGroup} donation verified for ${data.donorName || 'Donor'}`
     }));
-    socket.on('request_created', (data) => handleNewActivity({
+    socket.on('new_request_broadcast', (data) => handleNewActivity({
         type: 'request',
         title: 'Request Broadcasted',
-        message: `Request for ${data.bloodGroup} sent to nearby donors`
+        message: `New request created` // Backend sends action: 'refresh', we might need to fetch details or just show generic alert
     }));
 
     return () => {

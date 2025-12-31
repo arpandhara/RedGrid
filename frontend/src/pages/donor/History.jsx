@@ -5,6 +5,8 @@ import api from "../../api/axios";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
+import EmptyState from "../../components/common/EmptyState";
+import { CardSkeleton } from "../../components/common/LoadingSkeletons";
 
 const History = () => {
     const [donations, setDonations] = useState([]);
@@ -54,8 +56,14 @@ const History = () => {
     };
 
     if (loading) return (
-        <div className="flex items-center justify-center min-h-[50vh]">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500"></div>
+        <div className="min-h-screen px-4 pb-20 md:px-8 max-w-6xl mx-auto pt-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                <CardSkeleton />
+                <CardSkeleton />
+            </div>
+             <div className="space-y-8">
+                {[1, 2].map(i => <CardSkeleton key={i} />)}
+            </div>
         </div>
     );
 
@@ -106,11 +114,11 @@ const History = () => {
 
                     <div className="space-y-12 lg:space-y-24">
                         {donations.length === 0 ? (
-                            <div className="text-center py-32">
-                                <Award size={64} className="mx-auto text-zinc-700 mb-6" />
-                                <h3 className="text-2xl font-bold text-white mb-2">Your journey begins now</h3>
-                                <p className="text-zinc-500">Visit a hospital to earn your first badge.</p>
-                            </div>
+                            <EmptyState 
+                                title="Your journey begins now" 
+                                message="Make a donation to start your legacy. Every drop counts." 
+                                icon="list" 
+                            />
                         ) : (
                             donations.map((donation, index) => (
                                 <motion.div 
@@ -144,7 +152,8 @@ const History = () => {
                                                 </div>
 
                                                 <h3 className="text-2xl font-bold text-white mb-2">
-                                                    {donation.hospital?.hospitalProfile?.hospitalName || 'Unknown Hospital'}
+                                                    {donation.hospital?.hospitalProfile?.hospitalName || 
+                                                     (donation.hospital?.firstName ? `${donation.hospital.firstName} ${donation.hospital.lastName}` : 'Unknown Verifier')}
                                                 </h3>
                                                 
                                                 <div className="flex flex-col space-y-2 mb-8">

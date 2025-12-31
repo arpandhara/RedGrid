@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from "@clerk/clerk-react";
+import { useSocket } from '../../context/SocketContext';
 import api from '../../api/axios';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -37,6 +38,7 @@ const Inventory = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null); 
   const { getToken } = useAuth();
+  const { socket } = useSocket();
 
   const fetchInventory = async () => {
     try {
@@ -62,7 +64,29 @@ const Inventory = () => {
 
   useEffect(() => {
     fetchInventory();
-  }, []);
+
+    // Socket Listener
+    if (socket) {
+        socket.on('inventory_update', (data) => {
+            // Update local state instantly
+            setInventory(prev => ({
+                ...prev,
+                [data.bloodGroup]: data.quantity
+            }));
+            
+            // Optional: Show toast if significant (prevent spam)
+             toast.success(`Inventory Updated: ${data.bloodGroup} now has ${data.quantity} units`, {
+                 id: `inv-${data.bloodGroup}` // Dedup toasts
+             });
+        });
+    }
+
+    return () => {
+        if (socket) {
+            socket.off('inventory_update');
+        }
+    }
+  }, [socket]);
 
   const handleUpdate = async (bloodGroup, type) => {
     setUpdating(bloodGroup);

@@ -28,6 +28,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 // --- DASHBOARD PAGES ---
 import DonorDashboard from "./pages/donor/DonorDashboard";
 import DonorHub from './pages/donor/DonorHub'; // New Import
+import UserScanner from './pages/donor/UserScanner'; // New Scanner Import
 import HospitalDashboard from "./pages/hospital/HospitalDashboard";
 import OrgDashboard from "./pages/org/OrgDashboard";
 import NotFound from "./pages/NotFound";
@@ -37,9 +38,15 @@ import Inventory from "./pages/hospital/Inventory";
 import ManageRequests from "./pages/hospital/ManageRequests";
 import Notifications from "./pages/donor/Notifications";
 import History from "./pages/donor/History";
+import RewardsMarketplace from "./pages/donor/RewardsMarketplace";
+import Leaderboard from "./pages/Leaderboard"; // New Import // New Import
 
 import VerifyDonation from "./pages/hospital/VerifyDonation";
 import OnboardingWizard from "./components/onboarding/OnboardingWizard";
+
+// --- AUTH COMPONENTS ---
+import PublicRoute from "./components/auth/PublicRoute";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 const AuthWrapper = ({ children }) => {
   const { isSignedIn, getToken } = useAuth();
@@ -97,7 +104,7 @@ const LandingLayout = () => (
 );
 
 const Root = () => {
-  const { isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded, user: clerkUser } = useUser();
   const { user: dbUser, isLoading: dbLoading } = useAuthStore();
 
   if (!isLoaded || dbLoading) return <SkeletonLayout />;
@@ -109,7 +116,7 @@ const Root = () => {
         return <Navigate to="/onboarding" replace />;
     }
 
-    const role = dbUser?.role || useUser().user?.unsafeMetadata?.role;
+    const role = dbUser?.role || clerkUser?.unsafeMetadata?.role;
     
     if (role === "hospital")
       return <Navigate to="/hospital/dashboard" replace />;
@@ -138,20 +145,34 @@ function App() {
               />
             </Route>
 
-            <Route path="/login/*" element={<Login />} />
-            <Route path="/register/*" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+            {/* PUBLIC ROUTES (Redirects to Dashboard if logged in) */}
+            <Route element={<PublicRoute />}>
+                <Route path="/login/*" element={<Login />} />
+                <Route path="/register/*" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+            </Route>
             
-            {/* NEW: Onboarding Route */}
-            <Route path="/onboarding" element={<OnboardingWizard />} />
+            {/* PROTECTED ROUTES */}
+            <Route element={<ProtectedRoute />}>
+                {/* Onboarding Logic: ProtectedRoute allows access if signed in. 
+                    OnboardingWizard itself handles checking if already onboarded (optional but good) */}
+                <Route path="/onboarding" element={<OnboardingWizard />} />
 
+                {/* Scanners */}
+                <Route path="/donor/scan" element={<UserScanner />} />
+            </Route>
+
+            {/* DASHBOARD LAYOUT (Already Protected internally, but good to keep distinct) */}
             <Route
               element={isLoaded ? <DashboardLayout /> : <SkeletonLayout />}
             >
               <Route path="/donor/dashboard" element={<DonorDashboard />} />
               <Route path="/donor/hub" element={<DonorHub />} /> {/* New Route */}
               <Route path="/donor/notifications" element={<Notifications />} />
+              <Route path="/donor/notifications" element={<Notifications />} />
               <Route path="/donor/history" element={<History />} />
+              <Route path="/donor/rewards" element={<RewardsMarketplace />} />
+              <Route path="/donor/leaderboard" element={<Leaderboard />} /> {/* New Route */} {/* New Route */}
               <Route
                 path="/hospital/create-request"
                 element={<CreateRequest />}
@@ -165,6 +186,7 @@ function App() {
                 element={<VerifyDonation />} 
               />
               <Route path="/hospital/inventory" element={<Inventory />} />
+              <Route path="/hospital/notifications" element={<Notifications />} />
               <Route path="/hospital/manage-requests" element={<ManageRequests />} />
               <Route path="/org/dashboard" element={<OrgDashboard />} />
               <Route path="/settings" element={<Settings />} />
@@ -185,6 +207,9 @@ const AppWrapper = () => (
       toastOptions={{
         className: "bg-zinc-900 text-white border border-zinc-800",
         style: { borderRadius: "10px", background: "#18181b", color: "#fff" },
+      }}
+      containerStyle={{
+        zIndex: 99999,
       }}
     />
     <App />

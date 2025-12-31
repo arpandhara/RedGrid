@@ -20,6 +20,13 @@ const donationSchema = new mongoose.Schema({
     type: String,
     enum: ['completed', 'processing', 'rejected'],
     default: 'completed'
+  },
+
+  // --- GAMIFICATION ---
+  donationType: {
+    type: String,
+    enum: ['HOSPITAL', 'CAMP', 'FAMILY'],
+    default: 'HOSPITAL' // Default to general hospital donation
   }
 }, { timestamps: true });
 

@@ -17,7 +17,19 @@ const useAuthStore = create((set) => ({
       set({ user: res.data.data, isAuthenticated: true, isLoading: false });
     } catch (err) {
       console.error("User fetch error:", err);
-      set({ user: null, isAuthenticated: false, isLoading: false, error: err.response?.data?.message });
+      // Don't clear user immediately on error to prevent flashing, just stop loading
+      set({ isLoading: false, error: err.response?.data?.message });
+    }
+  },
+
+  // Silent refresh (for background updates like Badges)
+  refreshUser: async () => {
+    // No set({ isLoading: true }) here!
+    try {
+      const res = await api.get('/auth/me'); // Axios interceptor handles token
+      set({ user: res.data.data }); // Just update data
+    } catch (err) {
+      console.error("Silent refresh error:", err);
     }
   },
 

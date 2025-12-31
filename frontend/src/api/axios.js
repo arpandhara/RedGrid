@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // FIX: Remove hardcoded URL. Let Vite proxy handle it.
-  baseURL: '/api', 
+  // Use Environment Variable for API URL (Flexible for Deployment)
+  baseURL: import.meta.env.VITE_API_URL || '/api', 
   headers: {
     'Content-Type': 'application/json',
   },

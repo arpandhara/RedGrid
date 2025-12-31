@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { 
     Heart, Calendar, MapPin, 
     Bell, ChevronRight, Droplet, 
-    Search, User, PlayCircle, ShieldCheck
+    Search, User, PlayCircle, ShieldCheck, Gift
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -17,6 +17,14 @@ import toast from 'react-hot-toast';
 import DigitalIDCard from "../../components/donor/DigitalIDCard";
 import ProfileUpdateModal from "../../components/donor/ProfileUpdateModal";
 import OnboardingWizard from "../../components/onboarding/OnboardingWizard";
+import BadgeCard from "../../components/donor/BadgeCard"; 
+// Milestone definitions
+const MILESTONES = [
+    { code: 'FIRST_DROP', name: 'First Drop', description: 'Your first donation.', icon: 'droplet' },
+    { code: 'LIFE_SAVER', name: 'Life Saver', description: '5 donations.', icon: 'heart' },
+    { code: 'GUARDIAN', name: 'Guardian', description: '10 donations.', icon: 'shield' },
+    { code: 'LEGEND', name: 'Legend', description: '25 donations.', icon: 'crown' }
+];
 
 const DonorDashboard = () => {
   const { user } = useAuthStore();
@@ -48,6 +56,8 @@ const DonorDashboard = () => {
 
   useEffect(() => {
     fetchStats();
+    // Refresh User Profile quietly to get badges
+    useAuthStore.getState().refreshUser();
   }, []);
 
   // Socket Listener
@@ -56,11 +66,39 @@ const DonorDashboard = () => {
     const handleUpdate = (data) => {
         if (data.type === 'general' || data.title?.includes('Verified')) {
           fetchStats();
-          toast.success('Dashboard updated');
+          useAuthStore.getState().refreshUser(); // Silent refresh
+          // Toast handled by SocketContext
+        } else if (data.type === 'badge_unlocked' || data.title?.includes('Badge')) {
+             useAuthStore.getState().refreshUser();
+             toast((t) => (
+                <div className="flex items-center gap-3">
+                    <div className="text-2xl">🏆</div>
+                    <div>
+                        <p className="font-bold">Badge Unlocked!</p>
+                        <p className="text-sm">{data.name || 'New Achievement'}</p>
+                    </div>
+                </div>
+             ), { duration: 5000 });
+        } else if (data.type === 'points_update') {
+             useAuthStore.getState().refreshUser();
+             toast((t) => (
+                <div className="flex items-center gap-3">
+                    <div className="text-2xl">🎁</div>
+                    <div>
+                        <p className="font-bold">Points Earned!</p>
+                        <p className="text-sm">{data.message}</p>
+                    </div>
+                </div>
+             ), { duration: 5000, style: { background: '#18181b', color: '#fff', border: '1px solid #22c55e' } });
         }
     };
     socket.on('notification', handleUpdate);
-    return () => socket.off('notification', handleUpdate);
+    socket.on('points_update', handleUpdate);
+    
+    return () => {
+        socket.off('notification', handleUpdate);
+        socket.off('points_update', handleUpdate);
+    };
   }, [socket]);
 
   if (!user) return <div className="min-h-screen bg-black" />;
@@ -106,7 +144,7 @@ const DonorDashboard = () => {
         </div>
 
         {/* 2. STATS ROW (Replicating Image Layout) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             {/* Card 1: Total Donations */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex items-start justify-between relative overflow-hidden group">
                  <div>
@@ -150,6 +188,20 @@ const DonorDashboard = () => {
                  </div>
                  <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
                     <Calendar size={24} />
+                 </div>
+            </div>
+
+            {/* Card 4: Reward Points */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex items-start justify-between relative overflow-hidden group">
+                 <div>
+                     <p className="text-zinc-500 text-sm font-medium mb-1">Reward Points</p>
+                     <h3 className="text-4xl font-bold text-white mb-2">{user.donorProfile?.points || 0}</h3>
+                     <Link to="/donor/rewards" className="text-purple-500 text-xs font-bold flex items-center gap-1 hover:underline">
+                        Redeem Rewards <ChevronRight size={12} />
+                     </Link>
+                 </div>
+                 <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500">
+                    <Gift size={24} />
                  </div>
             </div>
         </div>
@@ -226,6 +278,28 @@ const DonorDashboard = () => {
                     {/* The Full Scaled Card */}
                     <div className="w-full">
                         <DigitalIDCard />
+                    </div>
+                </div>
+
+                {/* 2. BADGES WIDGET */}
+                <div>
+                     <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold text-white">My Badges</h3>
+                        <span className="text-xs font-bold text-zinc-500">
+                            {user.donorProfile?.badges?.length || 0} / 4 Unlocked
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                        {MILESTONES.map((milestone) => {
+                            const isUnlocked = user.donorProfile?.badges?.some(b => b.code === milestone.code);
+                            return (
+                                <BadgeCard 
+                                    key={milestone.code} 
+                                    badge={milestone} 
+                                    locked={!isUnlocked} 
+                                />
+                            );
+                        })}
                     </div>
                 </div>
 

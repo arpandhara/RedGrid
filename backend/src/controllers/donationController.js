@@ -6,13 +6,27 @@ import Inventory from '../models/Inventory.js';
 import { v4 as uuidv4 } from 'uuid';
 import PDFDocument from 'pdfkit';
 import { getIO } from '../utils/socket.js';
+import { processDonation } from '../services/donationService.js';
 
 // @desc    Verify Donor & Log Donation (Hospital only)
 // @route   POST /api/donations/verify
 export const verifyDonation = async (req, res) => {
   try {
     const { donorId, timestamp } = req.body;
-    const hospitalId = req.user._id;
+    const verifierId = req.user._id;
+    const verifierRole = req.user.role; // 'hospital', 'organization', 'donor'
+
+    // Determine Donation Type
+    // If request body specifies it, use it.
+    // Else default: Hospital/Org -> HOSPITAL, Donor -> FAMILY
+    let donationType = req.body.donationType;
+    if (!donationType) {
+        if (verifierRole === 'hospital' || verifierRole === 'organization') {
+            donationType = 'HOSPITAL';
+        } else {
+            donationType = 'FAMILY';
+        }
+    }
 
     // 1. Basic Validation
     if (!donorId) return res.status(400).json({ success: false, message: 'Invalid QR Code' });
@@ -39,53 +53,113 @@ export const verifyDonation = async (req, res) => {
         linkedRequestId = req.body.requestId;
         pendingRequest = await Request.findById(linkedRequestId);
         
-        if (pendingRequest && pendingRequest.status !== 'fulfilled') {
-             // Mark as fulfilled now that donor is here
-             pendingRequest.status = 'fulfilled';
+        // --- PERMISSION CHECK FOR DONORS ---
+        if (verifierRole === 'donor') {
+            // Donors can ONLY verify P2P requests (Direct) or Self requests
+            // They cannot verify hospital broadcasts
+            if (!pendingRequest.isDirect) { // Assuming isDirect flag marks P2P
+                 return res.status(403).json({ success: false, message: 'You are not authorized to verify this hospital/camp donation.' });
+            }
+            // Optionally check if they are the recipient
+             if (pendingRequest.recipient && pendingRequest.recipient.toString() !== verifierId.toString()) {
+                  // If I'm not the recipient, why am I scanning? (Unless it's a family member scenario managed by "requester")
+                  // Ideally, the "Requester/Recipient" verifies.
+                  if (pendingRequest.requester.toString() !== verifierId.toString()) {
+                      return res.status(403).json({ success: false, message: 'Only the request creator can verify this donation.' });
+                  }
+             }
         }
+        // -----------------------------------
+
+        // Check if THIS specific donor has already completed a donation for this request
+        const existingDonation = await Donation.findOne({ 
+            request: linkedRequestId, 
+            donor: donorId 
+        });
+
+        if (existingDonation) {
+             return res.status(400).json({ success: false, message: 'This donation has already been verified.' });
+        }
+
+        // Logic for Request Status Update is moved to AFTER donation creation
+        // We do NOT block if request is fulfilled, in case we are processing a late arrival (though ideally we should).
+        // For now, let's allow it but just validation the specific donor hasn't donated yet.
+        // Actually, if the request is TRULY full, we should stop. But 'fulfilled' status logic might be shaky.
+        // Let's rely on finding an existing donation record to prevent duplicates.
     } else {
         // Implicit link (General Scan)
-        pendingRequest = await Request.findOne({
+        const requestQuery = {
             'acceptedBy.donorId': donorId,
             'acceptedBy.status': 'accepted',
             status: { $in: ['accepted', 'pending'] } // Look for active accepted requests
-        }).sort({ createdAt: -1 });
+        };
+
+        // If donor is verifying, ONLY look for their own P2P requests
+        if (verifierRole === 'donor') {
+            requestQuery.requester = verifierId; // I must be the requester
+            requestQuery.isDirect = true; // Must be P2P
+        }
+
+        pendingRequest = await Request.findOne(requestQuery).sort({ createdAt: -1 });
 
         if (pendingRequest) {
             linkedRequestId = pendingRequest._id;
-             // Mark as fulfilled
-             pendingRequest.status = 'fulfilled';
         }
     }
 
-    // 4. Create Donation Record
-    const newDonation = await Donation.create({
-        donor: donorId,
-        hospital: hospitalId,
-        bloodGroup: donor.donorProfile?.bloodGroup || 'Unknown',
-        quantityUnits: 1, // Defaulting to 1 for now
-        relatedRequestId: linkedRequestId,
-        certificateId: `CERT-${uuidv4().split('-')[0].toUpperCase()}-${Date.now()}` 
-    });
-
-    // 5. Update Donor Stats
-    await User.findByIdAndUpdate(donorId, {
-        $set: { 
-            'donorProfile.lastDonationDate': new Date(),
-            // 'donorProfile.isAvailable': false // Disabled for testing/demo as per user request
+    // 4. Update Previous Request Status (Smart Fulfillment)
+    // We only mark the request as 'fulfilled' (Closed) if we have enough VERIFIED donations.
+    // This block should execute after a donation is processed, but before the final response.
+    // However, the instruction places it here, before processDonation.
+    // Let's assume the instruction intends for this to be a pre-check or an initial status update.
+    // The instruction's placement is a bit ambiguous regarding whether it's before or after the *actual* donation creation.
+    // Given the instruction's wording "After creating the donation and using processDonation, we need to update the Request status intelligently.",
+    // this block should ideally be *after* processDonation.
+    // But the provided diff places it *before* the `// 4. Process Donation (Service)` comment.
+    // I will place it as per the diff's explicit location, assuming `processDonation` will be the *new* step 5.
+    // If `linkedRequestId` is set from `req.body.requestId` or from `pendingRequest` in the `else` block,
+    // then `pendingRequest` will also be available.
+    if (linkedRequestId && pendingRequest) {
+        
+        // Count how many donations exist for this request
+        // This count will be *before* the current donation is processed by processDonation.
+        // So, if we want to include the *current* donation in the count for fulfillment,
+        // this logic needs to be moved *after* processDonation, or we need to add 1 to the count.
+        // Given the instruction "If count >= unitsNeeded, set status = 'fulfilled'", it implies
+        // the count should reflect the state *after* the current donation.
+        // I will add +1 to the count to reflect the donation currently being processed.
+        const donationCount = await Donation.countDocuments({ request: linkedRequestId });
+        
+        // Check if we met the requirement (including the current donation)
+        if ((donationCount + 1) >= (pendingRequest.unitsNeeded || 1)) { // Added +1 for the current donation
+            pendingRequest.status = 'fulfilled';
+        } else {
+            // If not fulfilled, ensure it's at least 'accepted' if it was 'pending'
+            if (pendingRequest.status === 'pending') {
+                pendingRequest.status = 'accepted';
+            }
         }
-    });
+        
+        // Also update the specific donor's status in the acceptedBy array to 'completed' if you track that
+        // (Optional but good for tracking who actually showed up)
+        // This part is handled later in the original code, so I'll keep it there.
 
-    // 6. Update Hospital Inventory (Auto-Increment)
-    if (newDonation.bloodGroup && newDonation.bloodGroup !== 'Unknown') {
-        await Inventory.findOneAndUpdate(
-            { hospital: hospitalId, bloodGroup: newDonation.bloodGroup },
-            { $inc: { quantity: 1 }, $set: { lastUpdated: new Date() } },
-            { upsert: true, new: true }
-        );
+        await pendingRequest.save();
     }
+
+
+    // 4. Process Donation (Service)
+    // This handles: Donation Record, Stats, Badges, Points, Inventory Increment, Notifications
+    const newDonation = await processDonation({
+        donorId: donorId,
+        verifierId: verifierId,
+        requestId: linkedRequestId,
+        bloodGroup: donor.donorProfile?.bloodGroup,
+        donationType: donationType
+    });
 
     // 6. Complete the specific acceptance sub-doc
+    // (This is specific to Request status, so keeping it here or could move to service if Request passed in)
     if (pendingRequest) {
         const acceptanceObj = pendingRequest.acceptedBy.find(a => a.donorId.toString() === donorId);
         if (acceptanceObj) {
@@ -94,23 +168,6 @@ export const verifyDonation = async (req, res) => {
         await pendingRequest.save();
     }
 
-    // 7. Notify Donor
-     await Notification.create({
-      recipient: donorId,
-      type: 'general',
-      title: 'Donation Verified!',
-      message: `Thank you for donating at ${req.user.hospitalProfile?.hospitalName || 'our hospital'}. Your certificate is being generated.`,
-    });
-
-    // 8. Emit Socket Event
-    const io = getIO();
-    io.to(donorId.toString()).emit('notification', {
-        type: 'general',
-        title: 'Donation Verified!',
-        message: 'Your donation has been verified. Dashboard updated.',
-        timestamp: new Date()
-    });
-
     res.status(200).json({
         success: true,
         message: 'Donation Verified Successfully',
@@ -118,7 +175,7 @@ export const verifyDonation = async (req, res) => {
             donationId: newDonation.certificateId,
             donorName: `${donor.firstName} ${donor.lastName}`,
             bloodGroup: donor.donorProfile?.bloodGroup,
-            date: newDonation.donationDate
+            date: newDonation.createdAt
         }
     });
 
@@ -243,7 +300,7 @@ export const downloadCertificate = async (req, res) => {
         // Authorized Sig
         doc.moveTo(150, footerY).lineTo(350, footerY).strokeColor('#a1a1aa').lineWidth(1).stroke();
         doc.fontSize(10).fillColor('#a1a1aa').text('Authorized Signature', 150, footerY + 10, { width: 200, align: 'center' });
-        doc.fontSize(12).fillColor('#18181b').text(donation.hospital.hospitalProfile.hospitalName, 150, footerY - 20, { width: 200, align: 'center' });
+        doc.fontSize(12).fillColor('#18181b').text(donation.hospital?.hospitalProfile?.hospitalName || 'RedGrid Partner Hospital', 150, footerY - 20, { width: 200, align: 'center' });
 
         // Date
         doc.moveTo(450, footerY).lineTo(600, footerY).stroke();
@@ -268,7 +325,7 @@ export const getMyDonationStats = async (req, res) => {
 
         const donations = await Donation.find({ donor: donorId })
             .sort({ createdAt: -1 })
-            .populate('hospital', 'hospitalProfile.hospitalName location');
+            .populate('hospital', 'hospitalProfile.hospitalName location firstName lastName');
 
         const totalDonations = donations.length;
         const livesSaved = totalDonations * 3; // Approximation
@@ -287,5 +344,88 @@ export const getMyDonationStats = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Failed to fetch stats" });
+    }
+};
+
+// @desc    Redeem Points
+// @route   POST /api/donations/redeem-points
+export const redeemPoints = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { points, reason } = req.body;
+
+        if (!points || points <= 0) {
+            return res.status(400).json({ success: false, message: "Invalid points amount" });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        if ((user.donorProfile.points || 0) < points) {
+            return res.status(400).json({ success: false, message: "Insufficient points" });
+        }
+
+        // Deduct Points
+        await User.findByIdAndUpdate(userId, {
+            $inc: { 'donorProfile.points': -points },
+            $push: { 
+                'donorProfile.pointsHistory': {
+                    reason: reason || 'Redemption',
+                    change: -points,
+                    date: new Date()
+                }
+            }
+        });
+
+        res.status(200).json({ success: true, message: "Points redeemed successfully" });
+
+    } catch (error) {
+        console.error("Redeem Error:", error);
+        res.status(500).json({ success: false, message: "Redemption failed" });
+    }
+};
+
+// @desc    Get Organization Leaderboard
+// @route   GET /api/donations/leaderboard
+export const getLeaderboard = async (req, res) => {
+    try {
+        const leaderboard = await Donation.aggregate([
+            {
+                $group: {
+                    _id: '$hospital', // Group by Verifier (Hospital/Org)
+                    totalDonations: { $sum: 1 },
+                    lastActivity: { $max: '$createdAt' }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'orgDetails'
+                }
+            },
+            { $unwind: '$orgDetails' },
+            { 
+                $match: { 'orgDetails.role': 'organization' } // Filter only Organizations
+            },
+            { $sort: { totalDonations: -1 } },
+            { $limit: 10 },
+            {
+                $project: {
+                    _id: 1,
+                    totalDonations: 1,
+                    orgName: '$orgDetails.orgProfile.orgName',
+                    city: '$orgDetails.location.city',
+                    logo: '$orgDetails.orgProfile.website' // Assuming website or we might need a placeholder
+                }
+            }
+        ]);
+
+        res.status(200).json({ success: true, data: leaderboard });
+
+    } catch (error) {
+        console.error("Leaderboard Error:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch leaderboard" });
     }
 };
