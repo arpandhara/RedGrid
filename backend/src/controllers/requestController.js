@@ -3,286 +3,288 @@ import Request from '../models/Request.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import Inventory from '../models/Inventory.js';
-import { getIO } from '../utils/socket.js'; 
-import { sendEmail } from '../utils/emailService.js'; 
+import { getIO } from '../utils/socket.js';
+import { sendEmail } from '../utils/emailService.js';
 
 // @desc    Create a Blood Request & Notify Nearby Donors
 // @route   POST /api/requests
 export const createRequest = async (req, res) => {
-  try {
-    const { patientName, bloodGroup, unitsNeeded, urgency, location } = req.body;
-    const requesterId = req.user._id;
-
-    console.log("Creating request for:", { bloodGroup, location });
-
-    // Create the Request
-    const newRequest = await Request.create({
-      requester: requesterId,
-      patientName,
-      bloodGroup,
-      unitsNeeded,
-      urgency,
-      location // Expecting { type: 'Point', coordinates: [lng, lat] }
-    });
-
-    // Geospatial Query: Find Donors within 10km (10000 meters)
-    const donors = await User.find({
-      role: 'donor',
-      'donorProfile.bloodGroup': bloodGroup, // Strict matching
-      'donorProfile.isAvailable': true,
-      location: {
-        $near: {
-          $geometry: {
-             type: "Point",
-             coordinates: location.coordinates
-          },
-          $maxDistance: 10000 // 10km radius
-        }
-      }
-    });
-
-    console.log(`Found ${donors.length} eligible donors nearby.`);
-    donors.forEach(d => {
-        console.log(`- Donor: ${d.firstName} (${d.email})`);
-        console.log(`  Location: ${JSON.stringify(d.location)}`);
-    });
-
-    // 3. Trigger Notifications (Socket + DB + Email)
-    const io = getIO();
-    
-    // Process async notifications properly
-    // 3. Trigger Notifications (Socket + DB + Email)
-
-    
-    // OPTIMIZATION: Prepare DB operations first
-    const notifications = donors.map(donor => ({
-        recipient: donor._id,
-        type: 'blood_request',
-        title: `URGENT: ${bloodGroup} Blood Needed!`,
-        message: `A hospital nearby needs ${unitsNeeded} units for ${patientName}.`,
-        relatedRequestId: newRequest._id
-    }));
-
-    // GLOBAL BROADCAST (For Feed Update)
-    // This ensures everyone's "Donate Now" feed refreshes instantly
-    io.emit('new_request_broadcast', { 
-        action: 'refresh',
-        requestId: newRequest._id,
-        bloodGroup: bloodGroup, // Add details for potential future toast use
-        location: location
-    });
-
-    // 4. Save Notifications & Emit Personal Alerts
-    // CRITICAL: Must save to DB *before* emitting socket, otherwise frontend fetches empty list
     try {
-        if (notifications.length > 0) {
-            await Notification.insertMany(notifications);
-            console.log(`Successfully logged ${notifications.length} notifications to DB.`);
-            
-            // Fire Sockets NOW that data is in DB
-            donors.forEach(donor => {
-                io.to(donor._id.toString()).emit('notification', {
-                    type: 'blood_request',
-                    title: `URGENT: ${bloodGroup} Blood Needed!`,
-                    message: `Urgent request for ${bloodGroup} nearby!`,
-                    requestId: newRequest._id
+        const { patientName, bloodGroup, unitsNeeded, urgency, location } = req.body;
+        const requesterId = req.user._id;
+
+        console.log("Creating request for:", { bloodGroup, location });
+
+        // Create the Request
+        const newRequest = await Request.create({
+            requester: requesterId,
+            patientName,
+            bloodGroup,
+            unitsNeeded,
+            urgency,
+            location // Expecting { type: 'Point', coordinates: [lng, lat] }
+        });
+
+        // Geospatial Query: Find Donors within 10km (10000 meters)
+        const donors = await User.find({
+            role: 'donor',
+            'donorProfile.bloodGroup': bloodGroup, // Strict matching
+            'donorProfile.isAvailable': true,
+            location: {
+                $near: {
+                    $geometry: {
+                        type: "Point",
+                        coordinates: location.coordinates
+                    },
+                    $maxDistance: 10000 // 10km radius
+                }
+            }
+        });
+
+        console.log(`Found ${donors.length} eligible donors nearby.`);
+        donors.forEach(d => {
+            console.log(`- Donor: ${d.firstName} (${d.email})`);
+            console.log(`  Location: ${JSON.stringify(d.location)}`);
+        });
+
+        // 3. Trigger Notifications (Socket + DB + Email)
+        const io = getIO();
+
+        // Process async notifications properly
+        // 3. Trigger Notifications (Socket + DB + Email)
+
+
+        // OPTIMIZATION: Prepare DB operations first
+        const notifications = donors.map(donor => ({
+            recipient: donor._id,
+            type: 'blood_request',
+            title: `URGENT: ${bloodGroup} Blood Needed!`,
+            message: `A hospital nearby needs ${unitsNeeded} units for ${patientName}.`,
+            relatedRequestId: newRequest._id
+        }));
+
+        // GLOBAL BROADCAST (For Feed Update)
+        // This ensures everyone's "Donate Now" feed refreshes instantly
+        io.emit('new_request_broadcast', {
+            action: 'refresh',
+            requestId: newRequest._id,
+            bloodGroup: bloodGroup, // Add details for potential future toast use
+            location: location
+        });
+
+        // 4. Save Notifications & Emit Personal Alerts
+        // CRITICAL: Must save to DB *before* emitting socket, otherwise frontend fetches empty list
+        try {
+            if (notifications.length > 0) {
+                await Notification.insertMany(notifications);
+                console.log(`Successfully logged ${notifications.length} notifications to DB.`);
+
+                // Fire Sockets NOW that data is in DB
+                donors.forEach(donor => {
+                    io.to(donor._id.toString()).emit('notification', {
+                        type: 'blood_request',
+                        title: `URGENT: ${bloodGroup} Blood Needed!`,
+                        message: `Urgent request for ${bloodGroup} nearby!`,
+                        requestId: newRequest._id
+                    });
                 });
-            });
+            }
+        } catch (dbError) {
+            console.error("Bulk Notification Insert Error:", dbError);
         }
-    } catch (dbError) {
-        console.error("Bulk Notification Insert Error:", dbError);
+
+        res.status(201).json({
+            success: true,
+            message: `Request created. ${donors.length} donors notified.`,
+            data: newRequest
+        });
+
+    } catch (error) {
+        console.error("Create Request Error:", error);
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    res.status(201).json({
-      success: true,
-      message: `Request created. ${donors.length} donors notified.`,
-      data: newRequest
-    });
-
-  } catch (error) {
-    console.error("Create Request Error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
 };
 
 // @desc    Direct P2P Request (User to User/Hospital)
 // @route   POST /api/requests/direct
 export const createDirectRequest = async (req, res) => {
-  try {
-    const { recipientId, recipientType, reason, patientDetails, bloodGroup } = req.body;
-    const requesterId = req.user._id;
+    try {
+        const { recipientId, recipientType, reason, patientDetails, bloodGroup } = req.body;
+        const requesterId = req.user._id;
 
-    console.log(`Direct Request from ${requesterId} to ${recipientId} (${recipientType})`);
+        console.log(`Direct Request from ${requesterId} to ${recipientId} (${recipientType})`);
 
-    // 1. Create Request Record (Marked as Direct)
-    const newRequest = await Request.create({
-      requester: requesterId,
-      recipient: recipientId, // Ensure Schema has this or use flexible schema
-      isDirect: true,         // Need to ensure Schema supports this flag
-      patientName: patientDetails?.name || 'Self',
-      bloodGroup: bloodGroup,
-      unitsNeeded: 1,
-      urgency: 'critical', // Fixed from 'high' to match enum ['critical', 'moderate', 'low']
-      location: req.user.location || { type: 'Point', coordinates: [0, 0] },
-      status: 'pending',
-      note: reason
-    });
+        // 1. Create Request Record (Marked as Direct)
+        const newRequest = await Request.create({
+            requester: requesterId,
+            recipient: recipientId, // Ensure Schema has this or use flexible schema
+            isDirect: true,         // Need to ensure Schema supports this flag
+            patientName: patientDetails?.name || 'Self',
+            bloodGroup: bloodGroup,
+            unitsNeeded: 1,
+            urgency: 'critical', // Fixed from 'high' to match enum ['critical', 'moderate', 'low']
+            location: req.user.location || { type: 'Point', coordinates: [0, 0] },
+            status: 'pending',
+            note: reason
+        });
 
-    // 2. Notify Recipient
-    await Notification.create({
-      recipient: recipientId,
-      type: 'direct_request',
-      title: `Blood Request: ${req.user.firstName} needs help!`,
-      message: reason || `Use says they need ${bloodGroup} blood.`,
-      relatedRequestId: newRequest._id,
-      actionUrl: `/requests/${newRequest._id}`
-    });
+        // 2. Notify Recipient
+        await Notification.create({
+            recipient: recipientId,
+            type: 'direct_request',
+            title: `Blood Request: ${req.user.firstName} needs help!`,
+            message: reason || `Use says they need ${bloodGroup} blood.`,
+            relatedRequestId: newRequest._id,
+            actionUrl: `/requests/${newRequest._id}`
+        });
 
-    // 3. Socket Event
-    const io = getIO();
-    io.to(recipientId.toString()).emit('notification', {
-      type: 'direct_request',
-      title: `New Direct Request`,
-      message: `${req.user.firstName} sent you a request.`,
-      requestId: newRequest._id
-    });
+        // 3. Socket Event
+        const io = getIO();
+        io.to(recipientId.toString()).emit('notification', {
+            type: 'direct_request',
+            title: `New Direct Request`,
+            message: `${req.user.firstName} sent you a request.`,
+            requestId: newRequest._id
+        });
 
-    // 4. Send Email Notification
-    const recipientUser = await User.findById(recipientId);
-    if (recipientUser && recipientUser.email) {
-       await sendEmail(
-         recipientUser.email,
-         `Urgent: Blood Request from ${req.user.firstName}`,
-         `<div style="font-family: Arial, sans-serif;">
+        // 4. Send Email Notification (Fire-and-forget, don't block response)
+        const recipientUser = await User.findById(recipientId);
+        if (recipientUser && recipientUser.email) {
+            // Don't await - let email send in background
+            sendEmail(
+                recipientUser.email,
+                `Urgent: Blood Request from ${req.user.firstName}`,
+                `<div style="font-family: Arial, sans-serif;">
             <h2>Blood Request</h2>
             <p>${req.user.firstName} is requesting blood donation from you.</p>
             <p><strong>Note:</strong> ${reason || 'No specific note provided.'}</p>
             <p><strong>Blood Group:</strong> ${bloodGroup}</p>
             <p>Please log in to the RedGrid app to Accept or Reject this request.</p>
           </div>`
-       );
+            ).catch(err => console.error("Background email failed:", err.message));
+        }
+
+        res.status(201).json({ success: true, message: 'Request sent successfully', data: newRequest });
+
+
+    } catch (error) {
+        console.error("Direct Request Error:", error);
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    res.status(201).json({ success: true, message: 'Request sent successfully', data: newRequest });
-
-  } catch (error) {
-    console.error("Direct Request Error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
 };
 
 // @desc    Accept a Blood Request (Donor)
 // @route   PUT /api/requests/:id/accept
 export const acceptRequest = async (req, res) => {
-  try {
-    const requestId = req.params.id;
-    const donor = req.user;
+    try {
+        const requestId = req.params.id;
+        const donor = req.user;
 
-    // 1. Find the request
-    const request = await Request.findById(requestId).populate('requester');
+        // 1. Find the request
+        const request = await Request.findById(requestId).populate('requester');
 
-    if (!request) {
-      return res.status(404).json({ success: false, message: 'Request not found' });
-    }
+        if (!request) {
+            return res.status(404).json({ success: false, message: 'Request not found' });
+        }
 
-    // CHECK: Is the request already closed/completed?
-    if (request.status === 'fulfilled' || request.status === 'cancelled') {
-         return res.status(400).json({ success: false, message: 'Request is no longer active' });
-    }
+        // CHECK: Is the request already closed/completed?
+        if (request.status === 'fulfilled' || request.status === 'cancelled') {
+            return res.status(400).json({ success: false, message: 'Request is no longer active' });
+        }
 
-    // CHECK: Have we already met the donor requirement?
-    // Filter active acceptances (in case we add simplified withdrawal logic later)
-    const activeAcceptances = request.acceptedBy.filter(a => a.status === 'accepted');
-    
-    if (activeAcceptances.length >= request.unitsNeeded) {
-         return res.status(400).json({ success: false, message: 'Enough donors have already accepted this request.' });
-    }
+        // CHECK: Have we already met the donor requirement?
+        // Filter active acceptances (in case we add simplified withdrawal logic later)
+        const activeAcceptances = request.acceptedBy.filter(a => a.status === 'accepted');
 
-    // CHECK: Did *I* already accept it?
-    const alreadyAccepted = request.acceptedBy.some(a => a.donorId.toString() === donor._id.toString());
-    if (alreadyAccepted) {
-        return res.status(400).json({ success: false, message: 'You have already accepted this request.' });
-    }
+        if (activeAcceptances.length >= request.unitsNeeded) {
+            return res.status(400).json({ success: false, message: 'Enough donors have already accepted this request.' });
+        }
 
-    // 2. Add Donor to List
-    request.acceptedBy.push({
-      donorId: donor._id,
-      status: 'accepted'
-    });
+        // CHECK: Did *I* already accept it?
+        const alreadyAccepted = request.acceptedBy.some(a => a.donorId.toString() === donor._id.toString());
+        if (alreadyAccepted) {
+            return res.status(400).json({ success: false, message: 'You have already accepted this request.' });
+        }
 
-    // 3. Update Status
-    // If we now have enough donors, mark as 'accepted' (Closed for new donors)
-    // Otherwise, keep as 'pending' (Visible in feed for others)
-    const newCount = activeAcceptances.length + 1;
-    
-    if (newCount >= request.unitsNeeded) {
-        request.status = 'accepted';
-    } else {
-        request.status = 'pending'; // Explicitly ensure it stays pending
-    }
+        // 2. Add Donor to List
+        request.acceptedBy.push({
+            donorId: donor._id,
+            status: 'accepted'
+        });
 
-    await request.save();
+        // 3. Update Status
+        // If we now have enough donors, mark as 'accepted' (Closed for new donors)
+        // Otherwise, keep as 'pending' (Visible in feed for others)
+        const newCount = activeAcceptances.length + 1;
 
-    // 3. Notify the Requester (Hospital/User)
-    // Ensure we have a valid requester ID
-    let requesterId = request.requester?._id || request.requester;
-    
-    // Ensure requesterId is a string for socket room
-    const requesterIdStr = requesterId.toString();
+        if (newCount >= request.unitsNeeded) {
+            request.status = 'accepted';
+        } else {
+            request.status = 'pending'; // Explicitly ensure it stays pending
+        }
 
-    console.log(`[AcceptLogic] Request ${requestId} accepted by ${donor.firstName} (${donor._id}).`);
-    console.log(`[AcceptLogic] Notifying Requester ID: ${requesterIdStr}`);
+        await request.save();
 
-    // Persist Notification
-    await Notification.create({
-      recipient: requesterIdStr,
-      type: 'status_update',
-      title: 'Donor Found!',
-      message: `${donor.firstName} ${donor.lastName} (${donor.donorProfile?.bloodGroup}) has accepted your request.`,
-      relatedRequestId: request._id
-    });
+        // 3. Notify the Requester (Hospital/User)
+        // Ensure we have a valid requester ID
+        let requesterId = request.requester?._id || request.requester;
 
-    // Socket Emit to Requester ONLY
-    const io = getIO();
-    
-    // Explicitly check we are not broadcasting
-    io.to(requesterIdStr).emit('notification', {
-      type: 'status_update',
-      title: 'Donor Found!',
-      message: `${donor.firstName} accepted your request.`,
-      requestId: request._id
-    });
+        // Ensure requesterId is a string for socket room
+        const requesterIdStr = requesterId.toString();
 
-    // Global Feed Refresh Signal (Silent payload)
-    // This tells clients to just re-fetch data, no message displayed
-    io.emit('request_update', { action: 'refresh' });
+        console.log(`[AcceptLogic] Request ${requestId} accepted by ${donor.firstName} (${donor._id}).`);
+        console.log(`[AcceptLogic] Notifying Requester ID: ${requesterIdStr}`);
 
-    // 5. Send Email to Requester (Optimized: Non-blocking)
-    const requesterUser = await User.findById(requesterId);
-    if (requesterUser && requesterUser.email) {
-        // Fire and forget - don't await
-        sendEmail(
-            requesterUser.email,
-            `Donor Found for your Request!`,
-            `<div style="font-family: Arial, sans-serif;">
+        // Persist Notification
+        await Notification.create({
+            recipient: requesterIdStr,
+            type: 'status_update',
+            title: 'Donor Found!',
+            message: `${donor.firstName} ${donor.lastName} (${donor.donorProfile?.bloodGroup}) has accepted your request.`,
+            relatedRequestId: request._id
+        });
+
+        // Socket Emit to Requester ONLY
+        const io = getIO();
+
+        // Explicitly check we are not broadcasting
+        io.to(requesterIdStr).emit('notification', {
+            type: 'status_update',
+            title: 'Donor Found!',
+            message: `${donor.firstName} accepted your request.`,
+            requestId: request._id
+        });
+
+        // Global Feed Refresh Signal (Silent payload)
+        // This tells clients to just re-fetch data, no message displayed
+        io.emit('request_update', { action: 'refresh' });
+
+        // 5. Send Email to Requester (Optimized: Non-blocking)
+        const requesterUser = await User.findById(requesterId);
+        if (requesterUser && requesterUser.email) {
+            // Fire and forget - don't await
+            sendEmail(
+                requesterUser.email,
+                `Donor Found for your Request!`,
+                `<div style="font-family: Arial, sans-serif;">
                <h2>Great News!</h2>
                <p><strong>${donor.firstName} ${donor.lastName}</strong> has accepted your blood request.</p>
                <p><strong>Contact:</strong> ${donor.phone || 'Not shared'}</p>
                <p>Please coordinate with them for the donation.</p>
              </div>`
-        ).catch(err => console.error("Email send failed:", err));
+            ).catch(err => console.error("Email send failed:", err));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Thank you! The hospital has been notified.',
+            data: request
+        });
+
+    } catch (error) {
+        console.error('Accept Request Error:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    res.status(200).json({
-      success: true,
-      message: 'Thank you! The hospital has been notified.',
-      data: request
-    });
-
-  } catch (error) {
-    console.error('Accept Request Error:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
 };
 
 
@@ -300,7 +302,7 @@ export const cancelRequest = async (req, res) => {
         }
 
         if (request.status === 'fulfilled' || request.status === 'cancelled') {
-             return res.status(400).json({ success: false, message: `Cannot cancel a ${request.status} request` });
+            return res.status(400).json({ success: false, message: `Cannot cancel a ${request.status} request` });
         }
 
         request.status = 'cancelled';
@@ -311,7 +313,7 @@ export const cancelRequest = async (req, res) => {
         // 1. Notify Specific Recipient (if P2P)
         if (request.recipient) {
             const recipientId = request.recipient.toString();
-            
+
             // DB Notification
             await Notification.create({
                 recipient: recipientId,
@@ -329,21 +331,21 @@ export const cancelRequest = async (req, res) => {
                 requestId: request._id
             });
 
-             // Email
-             const recipientUser = await User.findById(recipientId);
-             if (recipientUser && recipientUser.email) {
-                 sendEmail(
-                     recipientUser.email,
-                     `Request Cancelled`,
-                     `<p>${req.user.firstName} has cancelled the blood request you received.</p>`
-                 ).catch(console.error);
-             }
+            // Email
+            const recipientUser = await User.findById(recipientId);
+            if (recipientUser && recipientUser.email) {
+                sendEmail(
+                    recipientUser.email,
+                    `Request Cancelled`,
+                    `<p>${req.user.firstName} has cancelled the blood request you received.</p>`
+                ).catch(console.error);
+            }
         }
 
         // 2. Notify All Accepted Donors (if any)
         if (request.acceptedBy && request.acceptedBy.length > 0) {
             const acceptedDonors = request.acceptedBy.map(a => a.donorId);
-            
+
             // Fetch donor details for emails
             const donorUsers = await User.find({ _id: { $in: acceptedDonors } });
 
@@ -360,7 +362,7 @@ export const cancelRequest = async (req, res) => {
             // Loop for Socket & Email
             donorUsers.forEach(donor => {
                 const donorIdStr = donor._id.toString();
-                
+
                 // Socket
                 io.to(donorIdStr).emit('notification', {
                     type: 'status_update',
@@ -398,15 +400,15 @@ export const getHospitalRequests = async (req, res) => {
         // Create a regex for city matching based on hospital's location (assuming hospital is loaded in req.user)
         // We need to fetch the full user to get location if it's not populated, but verifyDonation usually populates it.
         // protect middleware gives us the user.
-        
+
         const cityRegex = new RegExp(req.user.location?.city || '', 'i');
 
-        let query = { 
+        let query = {
             $or: [
                 { requester: hospitalId }, // Outbound
                 { recipient: hospitalId }, // Inbound (Direct)
                 // Broadcast Requests in the same city
-                { 
+                {
                     recipient: { $exists: false }, // No specific recipient
                     status: 'pending',             // Only pending
                     'location.city': { $regex: cityRegex } // Same city (assuming schema has location.city or we use geospatial)
@@ -416,7 +418,7 @@ export const getHospitalRequests = async (req, res) => {
                     // Better: User $near if possible, but $or with $near is tricky.
                     // Let's rely on basic "requests where I am the target" first. 
                     // If user wants BROADCAST, we should probably add them.
-                } 
+                }
             ]
         };
 
@@ -434,11 +436,11 @@ export const getHospitalRequests = async (req, res) => {
 
         // Reverting to the logic that definitely works for Manage Requests (Direct + Outbound)
         // and ensuring the frontend actually calls it.
-        
-         let finalQuery = { 
+
+        let finalQuery = {
             $or: [
-                { requester: hospitalId }, 
-                { recipient: hospitalId } 
+                { requester: hospitalId },
+                { recipient: hospitalId }
             ]
         };
         if (status) {
@@ -463,8 +465,8 @@ export const getHospitalRequests = async (req, res) => {
 export const getActiveRequests = async (req, res) => {
     try {
         const { lat, lng, radius = 50, city } = req.query; // Radius in km
-        
-        let query = { 
+
+        let query = {
             status: { $in: ['pending', 'urgent'] },
             isDirect: { $ne: true }, // Exclude Direct/P2P Requests
             requester: { $ne: req.user._id } // Exclude my own requests
@@ -481,16 +483,16 @@ export const getActiveRequests = async (req, res) => {
                     $maxDistance: radius * 1000 // Convert km to meters
                 }
             };
-        } 
+        }
         // 2. City Filter (Fallback)
         else if (city) {
             // This requires the Request model to have a city field or we query populated fields (harder in simple find)
             // Ideally, we should filter by the user's registered city if no coords provided
-             // For now, let's assume we filter in memory if we can't do geo, OR rely on the requester's populated location
+            // For now, let's assume we filter in memory if we can't do geo, OR rely on the requester's populated location
         }
         // 3. Authenticated User Location Fallback
         else if (req.user?.location?.coordinates?.length === 2 && req.user.location.coordinates[0] !== 0) {
-             query.location = {
+            query.location = {
                 $near: {
                     $geometry: {
                         type: "Point",
@@ -523,16 +525,16 @@ export const getActiveRequests = async (req, res) => {
 export const getUserRequests = async (req, res) => {
     try {
         const userId = req.user._id;
-        
+
         // 1. Incoming P2P Requests
-        const incoming = await Request.find({ 
-            recipient: userId, 
-            status: 'pending' 
+        const incoming = await Request.find({
+            recipient: userId,
+            status: 'pending'
         }).populate('requester', 'firstName lastName hospitalProfile orgProfile location');
 
         // 2. Outgoing Requests (Broadcasts + Direct)
-        const outgoing = await Request.find({ 
-            requester: userId 
+        const outgoing = await Request.find({
+            requester: userId
         }).sort({ createdAt: -1 });
 
         // 3. Accepted Requests (Tickets)
@@ -540,19 +542,19 @@ export const getUserRequests = async (req, res) => {
         // AND the request itself must not be fulfilled (double check)
         const accepted = await Request.find({
             status: { $nin: ['fulfilled', 'cancelled', 'rejected'] },
-            acceptedBy: { 
-                $elemMatch: { 
-                    donorId: userId, 
-                    status: 'accepted' 
-                } 
+            acceptedBy: {
+                $elemMatch: {
+                    donorId: userId,
+                    status: 'accepted'
+                }
             }
         })
-        .populate('requester', 'firstName lastName hospitalProfile orgProfile location')
-        .sort({ updatedAt: -1 }); // Latest tickets first
+            .populate('requester', 'firstName lastName hospitalProfile orgProfile location')
+            .sort({ updatedAt: -1 }); // Latest tickets first
 
-        res.status(200).json({ 
-            success: true, 
-            data: { incoming, outgoing, accepted } 
+        res.status(200).json({
+            success: true,
+            data: { incoming, outgoing, accepted }
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -571,7 +573,7 @@ export const rejectRequest = async (req, res) => {
 
         // Safety check: Cannot reject a request with no recipient (Broadcast)
         if (!request.recipient) {
-             return res.status(400).json({ success: false, message: 'Cannot reject a broadcast request' });
+            return res.status(400).json({ success: false, message: 'Cannot reject a broadcast request' });
         }
 
         // Only the recipient can reject
@@ -579,7 +581,7 @@ export const rejectRequest = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Not authorized to reject this request' });
         }
 
-        request.status = 'rejected'; 
+        request.status = 'rejected';
         await request.save();
 
         // Notify the Requester (The person who asked for help)
@@ -610,15 +612,15 @@ export const rejectRequest = async (req, res) => {
         // 5. Send Email to Requester
         const requesterUser = await User.findById(requesterId);
         if (requesterUser && requesterUser.email) {
-             await sendEmail(
-                 requesterUser.email,
-                 `Request Declined`,
-                 `<div style="font-family: Arial, sans-serif;">
+            await sendEmail(
+                requesterUser.email,
+                `Request Declined`,
+                `<div style="font-family: Arial, sans-serif;">
                     <h2>Request Update</h2>
                     <p>We are sorry, but <strong>${req.user.firstName}</strong> is unable to fulfill your blood request at this time.</p>
                     <p>We recommend broadcasting your request to other nearby donors.</p>
                   </div>`
-             );
+            );
         }
 
         res.status(200).json({ success: true, data: request });
@@ -653,7 +655,7 @@ export const fulfillRequest = async (req, res) => {
         }
 
         if (request.status === 'fulfilled') {
-             return res.status(400).json({ success: false, message: 'Request is already fulfilled' });
+            return res.status(400).json({ success: false, message: 'Request is already fulfilled' });
         }
 
         // INVENTORY LOGIC: DECREMENT
@@ -667,7 +669,7 @@ export const fulfillRequest = async (req, res) => {
             if (inventoryItem && inventoryItem.quantity >= request.unitsNeeded) {
                 inventoryItem.quantity -= request.unitsNeeded;
                 await inventoryItem.save();
-                
+
                 // Real-time Update
                 getIO().to(userId.toString()).emit('inventory_update', {
                     bloodGroup: request.bloodGroup,
@@ -681,7 +683,7 @@ export const fulfillRequest = async (req, res) => {
 
         // REWARDS & DONATION RECORD LOGIC
         // We need to identify who the DONOR was to credit them.
-        
+
         const donorsToProcess = [];
 
         if (isRecipient && req.user.role === 'donor') {
@@ -689,20 +691,20 @@ export const fulfillRequest = async (req, res) => {
             donorsToProcess.push(userId);
         } else if (isRequester) {
             // Case B: I am the Requester (Hospital/User).
-            
+
             // 1. P2P Recipient (If Direct Request)
             if (request.recipient) {
                 donorsToProcess.push(request.recipient);
             }
-            
+
             // 2. Accepted Donors (If Broadcast/Group Request)
             // If request has accepted donors, they likely donated if we are marking it done.
             if (request.acceptedBy && request.acceptedBy.length > 0) {
-                 request.acceptedBy.forEach(a => {
-                     if (a.status === 'accepted') {
-                         donorsToProcess.push(a.donorId);
-                     }
-                 });
+                request.acceptedBy.forEach(a => {
+                    if (a.status === 'accepted') {
+                        donorsToProcess.push(a.donorId);
+                    }
+                });
             }
         }
 
@@ -711,13 +713,13 @@ export const fulfillRequest = async (req, res) => {
         const uniqueDonors = [...new Set(donorsToProcess.map(id => id.toString()))];
 
         for (const donorId of uniqueDonors) {
-             // Check if Donation record already exists for this request/donor combo
-             // Note: We need to import Donation model dynamically or move import up if not present
-             const existingDonation = await import('../models/Donation.js').then(m => m.default.findOne({ 
-                 relatedRequestId: request._id,
-                 donor: donorId
-             }));
-            
+            // Check if Donation record already exists for this request/donor combo
+            // Note: We need to import Donation model dynamically or move import up if not present
+            const existingDonation = await import('../models/Donation.js').then(m => m.default.findOne({
+                relatedRequestId: request._id,
+                donor: donorId
+            }));
+
             if (!existingDonation) {
                 const verifier = isRequester ? userId : request.requester;
 
@@ -756,11 +758,11 @@ export const fulfillRequest = async (req, res) => {
             }
             // Notify Accepted Donors (Broadcast)
             if (request.acceptedBy && request.acceptedBy.length > 0) {
-                 request.acceptedBy.forEach(async (entry) => {
-                     const donorId = entry.donorId.toString();
-                     if (request.recipient && request.recipient.toString() === donorId) return;
+                request.acceptedBy.forEach(async (entry) => {
+                    const donorId = entry.donorId.toString();
+                    if (request.recipient && request.recipient.toString() === donorId) return;
 
-                     await Notification.create({
+                    await Notification.create({
                         recipient: donorId,
                         type: 'status_update',
                         title: 'Donation Verified',
@@ -773,14 +775,14 @@ export const fulfillRequest = async (req, res) => {
                         message: `Hospital confirmed your donation!`,
                         requestId: request._id
                     });
-                 });
+                });
             }
         }
 
         // 2. If Recipient marked as done (e.g. "I gave blood") -> Notify Requester
         if (isRecipient) {
-             const requesterId = request.requester.toString();
-             await Notification.create({
+            const requesterId = request.requester.toString();
+            await Notification.create({
                 recipient: requesterId,
                 type: 'status_update',
                 title: 'Request Fulfilled',

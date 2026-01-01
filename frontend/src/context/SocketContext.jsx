@@ -45,10 +45,12 @@ export const SocketProvider = ({ children }) => {
       fetchUnreadCount();
 
       const newSocket = io(socketUrl, {
-        transports: ['websocket'], // Force websocket to avoid polling issues
+        transports: ['websocket', 'polling'], // Allow fallback to polling
         reconnection: true,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 10,
         reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
       });
 
       // 2. Join Personal Room & Setup Listeners when Connected
@@ -56,6 +58,13 @@ export const SocketProvider = ({ children }) => {
         console.log("Socket Connected:", newSocket.id);
         newSocket.emit('join', user._id);
       });
+
+      // Rejoin room on reconnect (important!)
+      newSocket.on('reconnect', () => {
+        console.log("Socket Reconnected, rejoining room:", user._id);
+        newSocket.emit('join', user._id);
+      });
+
 
       newSocket.on('connect_error', (err) => {
         console.error("Socket Connection Error:", err);
