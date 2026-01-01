@@ -41,6 +41,12 @@ app.use(
   webhookRoutes
 );
 
+// Health Check / Root Route
+app.get('/', (req, res) => {
+  res.status(200).send('RedGrid API is running');
+});
+
+
 // Standard middleware
 app.use(express.json());
 app.use(mongoSanitize()); // Security: Prevent NoSQL Injection

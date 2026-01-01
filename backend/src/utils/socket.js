@@ -7,10 +7,11 @@ let io;
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: env.CLIENT_URL,
+      origin: env.CLIENT_URL.split(",").map(url => url.trim()),
       methods: ["GET", "POST"],
     },
   });
+
 
   // Security: Middleware for Authentication
   io.use((socket, next) => {

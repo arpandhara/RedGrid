@@ -25,7 +25,10 @@ export const SocketProvider = ({ children }) => {
       
       // 1. Initialize Connection
       // Adjust URL if your backend runs on a different port in dev
-      const socketUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      // Remove '/api' from the end because Socket.io connects to root
+      const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api\/?$/, "");
+      const socketUrl = baseUrl;
+
       console.log("Initializing socket connection to:", socketUrl, "for user:", user._id);
 
       // FETCH INITIAL UNREAD COUNT
