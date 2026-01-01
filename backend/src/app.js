@@ -20,8 +20,12 @@ import env from "./config/env.js"; // Env Validation
 
 const app = express();
 
+// Security: Trust Proxy (Required for Render/Heroku/Vercel)
+app.set('trust proxy', 1);
+
 // Security: Strict CORS
 app.use(cors({
+
   origin: env.CLIENT_URL,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true
