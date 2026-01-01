@@ -24,12 +24,24 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Security: Strict CORS
+// Security: Strict CORS
 app.use(cors({
+  origin: (origin, callback) => {
+    const allowedOrigins = env.CLIENT_URL.split(",").map(url => url.trim());
 
-  origin: env.CLIENT_URL,
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true
 }));
+
 
 app.use(
   "/api/webhooks",
