@@ -235,7 +235,24 @@ export const acceptRequest = async (req, res) => {
         console.log(`[AcceptLogic] Request ${requestId} accepted by ${donor.firstName} (${donor._id}).`);
         console.log(`[AcceptLogic] Notifying Requester ID: ${requesterIdStr}`);
 
-        // Persist Notification FIRST
+        // Socket Emit to Requester ONLY (BEFORE DB save for speed)
+        const io = getIO();
+
+        // Log socket room status
+        const roomSockets = io.sockets.adapter.rooms.get(requesterIdStr);
+        console.log(`[Notification] Room ${requesterIdStr} has ${roomSockets?.size || 0} sockets connected`);
+
+        // Emit immediately
+        io.to(requesterIdStr).emit('notification', {
+            type: 'status_update',
+            title: 'Donor Found!',
+            message: `${donor.firstName} accepted your request.`,
+            requestId: request._id
+        });
+        console.log(`Emitted 'notification' event to room: ${requesterIdStr}`);
+
+        // Persist Notification (Background/Parallel-ish)
+
         await Notification.create({
             recipient: requesterIdStr,
             type: 'status_update',
@@ -244,20 +261,6 @@ export const acceptRequest = async (req, res) => {
             relatedRequestId: request._id
         });
 
-        // Socket Emit to Requester ONLY
-        const io = getIO();
-
-        // Debug: Check if the room has connected sockets
-        const roomSockets = io.sockets.adapter.rooms.get(requesterIdStr);
-        console.log(`[Socket Debug] Room ${requesterIdStr} has ${roomSockets?.size || 0} sockets connected`);
-
-        // Emit to the requester's room
-        io.to(requesterIdStr).emit('notification', {
-            type: 'status_update',
-            title: 'Donor Found!',
-            message: `${donor.firstName} accepted your request.`,
-            requestId: request._id
-        });
 
         console.log(`[Socket Debug] Emitted 'notification' event to room: ${requesterIdStr}`);
 
@@ -598,6 +601,21 @@ export const rejectRequest = async (req, res) => {
         console.log(`[RejectLogic] Request ${request._id} rejected by ${req.user.firstName}`);
         console.log(`[RejectLogic] Notifying Requester ID: ${requesterIdStr}`);
 
+        // Real-time Notification (Emit BEFORE DB write for speed)
+        const io = getIO();
+
+        // Log socket room status
+        const roomSockets = io.sockets.adapter.rooms.get(requesterIdStr);
+        console.log(`[Notification] Room ${requesterIdStr} has ${roomSockets?.size || 0} sockets connected`);
+
+        io.to(requesterIdStr).emit('notification', {
+            type: 'status_update',
+            title: 'Request Rejected',
+            message: `${req.user.firstName} declined your request.`,
+            requestId: request._id
+        });
+        console.log(`Emitted 'notification' event to room: ${requesterIdStr}`);
+
         // Persist Notification
         await Notification.create({
             recipient: requesterIdStr,
@@ -607,19 +625,6 @@ export const rejectRequest = async (req, res) => {
             relatedRequestId: request._id
         });
 
-        // Real-time Notification
-        const io = getIO();
-
-        // Debug: Check socket room
-        const roomSockets = io.sockets.adapter.rooms.get(requesterIdStr);
-        console.log(`[Socket Debug] Room ${requesterIdStr} has ${roomSockets?.size || 0} sockets connected`);
-
-        io.to(requesterIdStr).emit('notification', {
-            type: 'status_update',
-            title: 'Request Rejected',
-            message: `${req.user.firstName} declined your request.`,
-            requestId: request._id
-        });
 
         console.log(`[Socket Debug] Emitted 'notification' event to room: ${requesterIdStr}`);
 

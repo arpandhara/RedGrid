@@ -120,7 +120,17 @@ export const SocketProvider = ({ children }) => {
 
       // MAIN: Listen for notifications
       newSocket.on('notification', (data) => {
-        console.log("🔔 New Notification Received:", data);
+        const receivedTime = new Date().toISOString();
+        console.log(`🔔 [${receivedTime}] New Notification Received:`, data);
+        
+        // Play sound
+        try {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Simple beep
+            audio.play().catch(e => console.log('Audio blocked:', e));
+        } catch (e) {
+            // Ignore audio errors
+        }
+
         setUnreadCount(prev => prev + 1);
         showNotificationToast(data);
       });
