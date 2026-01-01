@@ -14,4 +14,16 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', 'zustand'],
+          animations: ['framer-motion', 'gsap', '@gsap/react'],
+          maps: ['leaflet', 'react-leaflet'],
+          utils: ['date-fns', 'axios', 'clsx', 'tailwind-merge']
+        }
+      }
+    }
+  }
 })

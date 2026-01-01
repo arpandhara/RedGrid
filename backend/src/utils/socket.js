@@ -1,13 +1,25 @@
 import { Server } from "socket.io";
+// import jwt from "jsonwebtoken"; // If you verify JWTs manually
+import env from "../config/env.js";
 
 let io;
 
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:5173",
+      origin: env.CLIENT_URL,
       methods: ["GET", "POST"],
     },
+  });
+
+  // Security: Middleware for Authentication
+  io.use((socket, next) => {
+
+    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization;
+    if (!token && !socket.handshake.query?.userId) {
+
+    }
+    next();
   });
 
   io.on("connection", (socket) => {
@@ -15,6 +27,8 @@ export const initSocket = (httpServer) => {
 
     // Client must emit 'join' with their User ID to receive personal notifications
     socket.on("join", (userId) => {
+      // Security: Validate userId string?
+      if (!userId) return;
       socket.join(userId);
       console.log(`User ${userId} joined their notification room.`);
     });

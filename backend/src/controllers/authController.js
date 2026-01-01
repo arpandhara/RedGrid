@@ -2,11 +2,11 @@ import User from '../models/User.js';
 import { sendVerificationEmail } from '../utils/emailService.js';
 import { clerkClient } from '@clerk/clerk-sdk-node';
 import crypto from 'crypto';
+import asyncHandler from '../middlewares/asyncHandler.js';
 
 // @desc    Onboard User (Deep Profile Update)
 // @route   POST /api/auth/onboarding
-export const onboardUser = async (req, res) => {
-  try {
+export const onboardUser = asyncHandler(async (req, res) => {
     const { userId } = req.auth; // From Clerk Middleware
   
     const { 
@@ -64,7 +64,7 @@ export const onboardUser = async (req, res) => {
          } 
        }
        
-       // --- AUTO-GEOCODING FALLBACK ---
+       // --- AUTO-GEOCODING FALLBACK (SAFE WITH TIMEOUT) ---
        // If valid coordinates were NOT found but we have address details
        if (!updateData.location.coordinates && (location.address || location.city)) {
           try {
@@ -77,10 +77,23 @@ export const onboardUser = async (req, res) => {
                  console.log(`[Onboarding] Attempting to geocode: "${fullAddress}"`);
                  
                  const fetchCoordinates = async (query) => {
-                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
-                    const res = await fetch(url, { headers: { 'User-Agent': 'BloodDonationApp/1.0' } });
-                    if (res.ok) return await res.json();
-                    return [];
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s Timeout
+                    
+                    try {
+                        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+                        const res = await fetch(url, { 
+                            headers: { 'User-Agent': 'BloodDonationApp/1.0' },
+                            signal: controller.signal
+                        });
+                        clearTimeout(timeoutId);
+                        if (res.ok) return await res.json();
+                        return [];
+                    } catch (err) {
+                        clearTimeout(timeoutId);
+                        console.error("[Geocoding] API Request Failed:", err.message);
+                        return []; // Fail gracefully, don't crash
+                    }
                  };
 
                  let results = await fetchCoordinates(fullAddress);
@@ -102,7 +115,8 @@ export const onboardUser = async (req, res) => {
                  }
              }
           } catch (geoError) {
-              console.error("[Onboarding] Geocoding failed:", geoError.message);
+              console.error("[Onboarding] Geocoding logic failed:", geoError.message);
+              // Swallow error to ensure onboarding succeeds even if location is partial
           }
        }
     }
@@ -136,42 +150,38 @@ export const onboardUser = async (req, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      // With asyncHandler, throwing error goes to global handler
+      res.status(404);
+      throw new Error('User not found');
     }
 
     res.status(200).json({ success: true, data: user });
+});
 
-  } catch (error) {
-    console.error("Onboarding Error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
 
 // @desc    Get Current User
 // @route   GET /api/auth/me
-export const getCurrentUser = async (req, res) => {
-  try {
+export const getCurrentUser = asyncHandler(async (req, res) => {
     const { userId } = req.auth;
     const user = await User.findOne({ clerkId: userId });
     
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user) {
+        res.status(404);
+        throw new Error('User not found');
+    }
     
     res.status(200).json({ success: true, data: user });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+});
 
-export const forgotPassword = async (req, res) => {
-  try {
+export const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      res.status(404);
+      throw new Error('User not found');
     }
 
-    // Generate 6-digit OTP
     // Generate 6-digit OTP (Secure)
     const otp = crypto.randomInt(100000, 1000000).toString();
 
@@ -184,20 +194,16 @@ export const forgotPassword = async (req, res) => {
     const emailSent = await sendVerificationEmail(user.email, otp);
 
     if (!emailSent) {
-      return res.status(500).json({ success: false, message: 'Error sending email' });
+      res.status(500);
+      throw new Error('Error sending email');
     }
 
     res.status(200).json({ success: true, message: 'Verification code sent to email' });
-  } catch (error) {
-    console.error('Forgot Password Error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-};
+});
 
 // @desc    Verify OTP and Update Password in Clerk
 // @route   POST /api/auth/reset-password
-export const resetPassword = async (req, res) => {
-  try {
+export const resetPassword = asyncHandler(async (req, res) => {
     const { email, otp, newPassword } = req.body;
 
     // Find user with valid OTP
@@ -208,7 +214,8 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired code' });
+      res.status(400);
+      throw new Error('Invalid or expired code');
     }
 
     // Update Password in Clerk
@@ -222,9 +229,4 @@ export const resetPassword = async (req, res) => {
     await user.save();
 
     res.status(200).json({ success: true, message: 'Password reset successfully' });
-  } catch (error) {
-    console.error('Reset Password Error:', error);
-    const errorMessage = error.errors ? error.errors[0].message : error.message;
-    res.status(500).json({ success: false, message: errorMessage });
-  }
-};
+});

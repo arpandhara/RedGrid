@@ -14,36 +14,53 @@ const IncomingDonations = () => {
     const fetchIncoming = async () => {
        try {
            const token = await getToken();
-           // Fetch all requests that are 'accepted' or 'pending' but have donors?
-           // Actually, backend returns requests created by hospital.
-           // We filter for meaningful ones.
-           const res = await api.get('/requests/hospital?status=accepted', {
-               headers: { Authorization: `Bearer ${token}` }
-           });
            
-           if (res.data.success) {
-               // Flatten logic: We want a list of DONORS who are coming.
-               // Each request might have multiple donors (in future).
-               // Currently, 'acceptedBy' array holds them.
-               
-               const incomingList = [];
-               res.data.data.forEach(req => {
+           // Parallel Fetch: Request Responses & Direct Appointments
+           const [reqRes, apptRes] = await Promise.all([
+               api.get('/requests/hospital?status=accepted', { headers: { Authorization: `Bearer ${token}` } }),
+                api.get('/donations/appointments?status=pending', { headers: { Authorization: `Bearer ${token}` } })
+           ]);
+           
+           const incomingList = [];
+
+           // Process Requests
+           if (reqRes.data.success) {
+               reqRes.data.data.forEach(req => {
                    if (req.acceptedBy && req.acceptedBy.length > 0) {
                        req.acceptedBy.forEach(acceptance => {
                            if (acceptance.status === 'accepted') {
                                incomingList.push({
-                                   _id: acceptance._id, // unique sub-doc id
+                                   _id: acceptance._id, 
                                    donor: acceptance.donorId,
                                    request: req,
-                                   timestamp: acceptance.acceptedAt
+                                   timestamp: acceptance.acceptedAt,
+                                   type: 'request'
                                });
                            }
                        });
                    }
                });
-               
-               setRequests(incomingList);
            }
+           
+           // Process Appointments
+           if (apptRes.data.success) {
+               apptRes.data.data.forEach(appt => {
+                   incomingList.push({
+                       _id: appt._id,
+                       donor: appt.donor,
+                       request: null,
+                       timestamp: appt.donationDate,
+                       type: 'appointment'
+                   });
+               });
+           }
+           
+           // Sort by timestamp (Soonest first) - though appointments date is future, acceptance date is past
+           // Let's sort by relevant date
+           incomingList.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+           setRequests(incomingList);
+
        } catch (error) {
            console.error("Failed to fetch incoming donations", error);
        } finally {
@@ -62,8 +79,8 @@ const IncomingDonations = () => {
         const handleUpdate = (data) => {
             // Check if notification is about a donor accepting a request
             // data.type from acceptRequest is 'status_update'
-            if (data.type === 'status_update') {
-                console.log("New donor accepted! Refreshing list...");
+            if (data.type === 'status_update' || data.type === 'new_appointment') {
+                console.log("New donor / appointment! Refreshing list...");
                 // Re-fetch list to show new donor
                 fetchIncoming();
             }
@@ -76,22 +93,29 @@ const IncomingDonations = () => {
         };
       }, [socket]);
 
-    const handleComplete = async (requestId, donorId) => {
+    const handleComplete = async (item) => {
         try {
             // "Manual" verification without QR scanning interactions
             // We pass the required fields to the existing endpoint
-            await api.post('/donations/verify', {
-                donorId, 
-                requestId,
-                timestamp: Date.now() // Emulate a current scan
-            });
+            
+            const payload = {
+                donorId: item.donor._id, 
+                timestamp: Date.now()
+            };
+
+            if (item.type === 'request') {
+                payload.requestId = item.request._id;
+            } 
+            // If appointment, we don't pass requestId, verifyDonation will find pending appt by donorId
+
+            await api.post('/donations/verify', payload);
             
             toast.success("Donation marked as completed!");
             // Remove from list
-            setRequests(prev => prev.filter(r => r.request._id !== requestId || r.donor._id !== donorId));
+            setRequests(prev => prev.filter(r => r._id !== item._id));
         } catch (error) {
             console.error(error);
-            toast.error("Failed to complete donation");
+            toast.error(error.response?.data?.message || "Failed to complete donation");
         }
     };
 
@@ -114,7 +138,7 @@ const IncomingDonations = () => {
                 ) : (
 
                     requests.map(item => (
-                        <div key={`${item.request._id}-${item.donor._id}`} className="bg-zinc-950 border border-zinc-800 p-4 rounded-lg flex flex-col gap-3">
+                        <div key={item._id} className="bg-zinc-950 border border-zinc-800 p-4 rounded-lg flex flex-col gap-3">
                             {/* Header: Donor Info */}
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-3">
@@ -131,20 +155,21 @@ const IncomingDonations = () => {
                                     </div>
                                 </div>
                                 <span className="text-[10px] text-zinc-500 bg-zinc-900 px-2 py-1 rounded border border-zinc-800">
-                                        For: {item.request?.patientName}
+                                        {item.type === 'appointment' ? 'Scheduled Visit' : `For: ${item.request?.patientName}`}
                                 </span>
                             </div>
 
                             {/* Actions */}
                             <div className="flex items-center gap-2 mt-2">
                                     <button 
-                                    onClick={() => handleComplete(item.request._id, item.donor._id)}
+                                    onClick={() => handleComplete(item)}
                                     className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1 shadow-lg shadow-green-900/20"
                                     >
                                         <CheckCircle2 size={14} /> Mark Done
                                     </button>
                                     <div className="text-[10px] text-zinc-500 flex items-center gap-1 bg-zinc-900 px-2 py-2 rounded-lg">
-                                        <Clock size={12} /> Pending Arrival
+                                        <Clock size={12} /> 
+                                        {item.type === 'appointment' ? new Date(item.timestamp).toLocaleDateString() : 'Active Request'}
                                     </div>
                             </div>
                         </div>

@@ -1,7 +1,7 @@
 // backend/src/routes/requestRoutes.js
 import express from 'express';
 import { createRequest, acceptRequest, getHospitalRequests, cancelRequest, createDirectRequest, getActiveRequests, getUserRequests, rejectRequest, fulfillRequest } from '../controllers/requestController.js';
-import { protect, authorize, loadUser } from '../middlewares/authMiddleware.js'; 
+import { protect, authorize, loadUser } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
@@ -9,13 +9,13 @@ const router = express.Router();
 router.post('/', protect, authorize('hospital', 'organization', 'donor'), createRequest);
 
 // Direct P2P Request
-router.post('/direct', protect, loadUser, createDirectRequest); 
+router.post('/direct', protect, loadUser, createDirectRequest);
 
 // Get Active Requests Feed (For Donors)
 router.get('/feed', protect, loadUser, getActiveRequests); // New
 
 // Get Hospital Requests
-router.get('/hospital', protect, authorize('hospital'), getHospitalRequests);
+router.get('/hospital', protect, authorize('hospital', 'organization'), getHospitalRequests);
 
 // Get User Specific Requests (Incoming P2P / Outgoing)
 router.get('/user', protect, loadUser, getUserRequests);

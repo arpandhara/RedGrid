@@ -1,3 +1,4 @@
+
 import User from '../models/User.js';
 import Request from '../models/Request.js'; // New Import
 import Inventory from '../models/Inventory.js';
@@ -23,9 +24,9 @@ export const searchAvailability = async (req, res) => {
                 { 'location.state': { $regex: new RegExp(city, 'i') } }
             ]
         });
-        
+
         console.log(`[Search] Hospitals Found: ${hospitalsInCity.length}`);
-        
+
         const hospitalIds = hospitalsInCity.map(h => h._id);
 
         // Find inventory matching blood group for those hospitals
@@ -33,7 +34,7 @@ export const searchAvailability = async (req, res) => {
             hospital: { $in: hospitalIds },
             quantity: { $gt: 0 }
         };
-        
+
         if (bloodGroup) {
             inventoryQuery.bloodGroup = bloodGroup;
         }
@@ -44,7 +45,7 @@ export const searchAvailability = async (req, res) => {
 
         // 2. Search Donors
         console.log(`Searching Donors: Group=${bloodGroup}, City=${city}`);
-        
+
         const donorQuery = {
             role: 'donor',
             _id: { $ne: req.user._id }, // Exclude self
@@ -59,7 +60,7 @@ export const searchAvailability = async (req, res) => {
         if (bloodGroup) {
             donorQuery['donorProfile.bloodGroup'] = bloodGroup;
         }
-        
+
         const donorResultsRaw = await User.find(donorQuery).select('firstName lastName location donorProfile.lastDonationDate phone email donorProfile.bloodGroup');
 
         // Check for existing pending requests from this user to the found donors and hospitals
@@ -96,13 +97,13 @@ export const searchAvailability = async (req, res) => {
             location: d.location,
             bloodGroup: d.donorProfile?.bloodGroup, // Use donor's actual blood group
             units: 1, // Donors usually give 1 unit
-            verified: d.isVerified || false, 
+            verified: d.isVerified || false,
             lastDonation: d.donorProfile?.lastDonationDate,
             hasRequested: requestedSet.has(d._id.toString()) // New Flag
         }));
 
         console.log(`[Search] Donors Found: ${donorResults.length}`);
-        
+
         if (donorResults.length === 0) {
             console.log(`[Search Debug] No donors found for query:`, JSON.stringify(donorQuery, null, 2));
         }
@@ -114,6 +115,55 @@ export const searchAvailability = async (req, res) => {
 
     } catch (error) {
         console.error("Search Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Search for Donation Centers (Hospitals + Active Camps)
+// @route   GET /api/search/centers
+export const searchCenters = async (req, res) => {
+    try {
+        const { city } = req.query; // City is optional, default to all if not provided? Or require city.
+
+        let query = {
+            $or: [
+                { role: 'hospital' },
+                {
+                    role: 'organization',
+                    $or: [
+                        { 'orgProfile.accountType': 'permanent' },
+                        {
+                            'orgProfile.accountType': 'temporary',
+                            'orgProfile.accountExpiresAt': { $gt: new Date() } // Filter out expired camps
+                        }
+                    ]
+                }
+            ]
+        };
+
+        if (city) {
+            query['location.city'] = { $regex: new RegExp(city, 'i') };
+        }
+
+        const results = await User.find(query)
+            .select('role hospitalProfile orgProfile location phone email')
+            .lean();
+
+        const formattedResults = results.map(user => ({
+            _id: user._id,
+            type: user.role,
+            name: user.role === 'hospital' ? user.hospitalProfile?.hospitalName : user.orgProfile?.organizationName,
+            location: user.location,
+            phone: user.phone,
+            email: user.email,
+            isCamp: user.role === 'organization' && user.orgProfile?.accountType === 'temporary',
+            expiresAt: user.orgProfile?.accountExpiresAt
+        }));
+
+        res.status(200).json({ success: true, count: formattedResults.length, data: formattedResults });
+
+    } catch (error) {
+        console.error("Search Centers Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };

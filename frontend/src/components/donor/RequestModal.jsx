@@ -19,7 +19,7 @@ L.Icon.Default.mergeOptions({
     shadowUrl: iconShadow,
 });
 
-const RequestModal = ({ isOpen, onClose, target, onViewTicket }) => {
+const RequestModal = ({ isOpen, onClose, target, onViewTicket, onRequestSent }) => {
     const [reason, setReason] = useState('');
     const [loading, setLoading] = useState(false);
     const { user } = useAuthStore();
@@ -53,6 +53,7 @@ const RequestModal = ({ isOpen, onClose, target, onViewTicket }) => {
                 });
                 if (res.data.success) {
                     toast.success("Request sent successfully!");
+                    if (onRequestSent) onRequestSent(target._id);
                     onClose();
                 }
             }

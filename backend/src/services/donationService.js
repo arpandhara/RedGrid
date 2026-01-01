@@ -13,28 +13,44 @@ import { getIO } from '../utils/socket.js';
  * 4. Award Points (Gamification)
  * 5. Update Inventory (if Hospital verified)
  */
-export const processDonation = async ({ donorId, verifierId, requestId, bloodGroup, donationType }) => {
-    
+export const processDonation = async ({ donorId, verifierId, requestId, bloodGroup, donationType, pendingDonationId }) => {
+
     // 1. Fetch Donor
     const donor = await User.findById(donorId);
     if (!donor) throw new Error('Donor not found');
 
     const verifier = await User.findById(verifierId);
 
-    // 2. Create Donation Record
-    const newDonation = await Donation.create({
-        donor: donorId,
-        hospital: verifierId, // The entity marking it done (Hospital/Org/User)
-        bloodGroup: bloodGroup || donor.donorProfile?.bloodGroup || 'Unknown',
-        quantityUnits: 1,
-        relatedRequestId: requestId,
-        donationType: donationType || 'HOSPITAL', // Default
-        certificateId: `CERT-${uuidv4().split('-')[0].toUpperCase()}-${Date.now()}`
-    });
+    // 2. Create or Update Donation Record
+    let newDonation;
+
+    if (pendingDonationId) {
+        // Update existing Pending Appointment
+        newDonation = await Donation.findByIdAndUpdate(pendingDonationId, {
+            status: 'completed',
+            donationDate: new Date(), // Update to actual verification time
+            certificateId: `CERT-${uuidv4().split('-')[0].toUpperCase()}-${Date.now()}`,
+            // P2P requests link might be missing if it was just a camp appointment, 
+            // but if requestId passed, we can add it?
+            relatedRequestId: requestId || undefined
+        }, { new: true });
+    } else {
+        // Create Fresh
+        newDonation = await Donation.create({
+            donor: donorId,
+            hospital: verifierId, // The entity marking it done (Hospital/Org/User)
+            bloodGroup: bloodGroup || donor.donorProfile?.bloodGroup || 'Unknown',
+            quantityUnits: 1,
+            relatedRequestId: requestId,
+            donationType: donationType || 'HOSPITAL', // Default
+            certificateId: `CERT-${uuidv4().split('-')[0].toUpperCase()}-${Date.now()}`,
+            status: 'completed'
+        });
+    }
 
     // 3. Update Donor Stats
     await User.findByIdAndUpdate(donorId, {
-        $set: { 
+        $set: {
             'donorProfile.lastDonationDate': new Date()
         }
     });
@@ -71,7 +87,7 @@ export const processDonation = async ({ donorId, verifierId, requestId, bloodGro
     if (BADGES[totalDonations]) {
         const badge = BADGES[totalDonations];
         const hasBadge = donor.donorProfile.badges.some(b => b.code === badge.code);
-        
+
         if (!hasBadge) {
             await User.findByIdAndUpdate(donorId, {
                 $push: { 'donorProfile.badges': badge }
@@ -96,12 +112,12 @@ export const processDonation = async ({ donorId, verifierId, requestId, bloodGro
     // P2P/Family donations do not get points as per policy.
     if (donationType === 'HOSPITAL' || donationType === 'CAMP') {
         pointsAwarded = 50;
-    } 
+    }
 
     if (pointsAwarded > 0) {
         await User.findByIdAndUpdate(donorId, {
             $inc: { 'donorProfile.points': pointsAwarded },
-            $push: { 
+            $push: {
                 'donorProfile.pointsHistory': {
                     reason: `Donation Verified`,
                     change: pointsAwarded,
@@ -125,7 +141,7 @@ export const processDonation = async ({ donorId, verifierId, requestId, bloodGro
         title: 'Donation Verified!',
         message: `Your donation has been confirmed. You earned ${pointsAwarded} points.`,
     });
-    
+
     io.to(donorId.toString()).emit('notification', {
         type: 'general',
         title: 'Donation Verified!',
