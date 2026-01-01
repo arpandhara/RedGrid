@@ -85,8 +85,16 @@ app.use('/api/donors', donorRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/search', searchRoutes); // New Mount
 
+// --- 404 Handler ---
+app.use((req, res, next) => {
+  const error = new Error(`Not Found - ${req.originalUrl}`);
+  error.statusCode = 404;
+  next(error);
+});
+
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
+
   console.error("🔥 Global Error Details:", err);
 
   // Default to 500 Server Error
