@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
+import api from "../../api/axios";
+
 
 const OnboardingWizard = () => {
   const { user } = useUser();
@@ -358,7 +360,8 @@ const OnboardingWizard = () => {
                         name="gender"
                         value={formData.gender}
                         onChange={handleChange}
-                        options={["male", "female", "other"]}
+                        options={["Male", "Female", "Other"]}
+
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -457,7 +460,8 @@ const OnboardingWizard = () => {
                     <FloatingInput label="Hospital Name" name="hospitalName" value={formData.hospitalName} onChange={handleChange} icon={<Building2 size={18} />} />
                     <div className="grid grid-cols-2 gap-4">
                       <FloatingInput label="Registration / GST No." name="registrationNumber" value={formData.registrationNumber} onChange={handleChange} />
-                      <SelectInput label="Hospital Type" name="type" value={formData.type} onChange={handleChange} options={["government", "private", "ngo"]} />
+                      <SelectInput label="Hospital Type" name="type" value={formData.type} onChange={handleChange} options={["Government", "Private", "Semi-Private"]} />
+
                     </div>
                     <div className="space-y-2 pt-2">
                       <label className="text-xs font-bold uppercase text-zinc-500 ml-1">Upload Legal Proof (License / GST Cert)</label>

@@ -120,7 +120,13 @@ export const onboardUser = asyncHandler(async (req, res) => {
     };
   }
 
+  // Log only in dev/test to avoid clutter
+  if (process.env.NODE_ENV !== 'production') {
+    console.log("Onboarding Update Payload:", JSON.stringify(updateData, null, 2));
+  }
+
   // Update the User in MongoDB
+
   const user = await User.findOneAndUpdate(
     { clerkId: userId },
     updateData,
