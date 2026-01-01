@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
+import hpp from "hpp"; // Security: Parameter Pollution
 import mongoSanitize from "./middlewares/mongoSanitize.js"; // Security (Custom)
+
 import webhookRoutes from "./routes/webhookRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -36,18 +38,32 @@ app.use(express.json());
 app.use(mongoSanitize()); // Security: Prevent NoSQL Injection
 
 // --- Security Middleware ---
+
 app.use(helmet());
 app.use(compression());
+app.use(hpp()); // Prevent HTTP Parameter Pollution
 
-// Security: Rate Limiting
+// Security: Rate Limiting (General)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per windowMs (Dev Friendly)
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many requests, please try again later." }
 });
+
+// Security: Stricter Rate Limiting (Auth)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // 20 attempts per 15 mins
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many login attempts, please try again later." }
+});
+
+app.use("/api/auth", authLimiter);
 app.use("/api", limiter);
+
 // ---------------------------
 
 // Routes

@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { donorSchema } from './donor.schema.js';
+import { hospitalSchema } from './hospital.schema.js';
+import { organizationSchema } from './organization.schema.js';
 
 export const onboardingSchema = z.object({
   body: z.object({
@@ -6,7 +9,7 @@ export const onboardingSchema = z.object({
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
     phone: z.string().optional(),
-    
+
     location: z.object({
       address: z.string().optional(),
       city: z.string().optional(),
@@ -14,9 +17,9 @@ export const onboardingSchema = z.object({
       coordinates: z.any().optional(),
     }).optional(),
 
-    // Allow these objects to pass through (or define stricter shapes if you prefer)
-    donorData: z.any().optional(),
-    hospitalData: z.any().optional(),
-    orgData: z.any().optional(),
+    // Composed Sub-Schemas
+    donorData: donorSchema.optional(),
+    hospitalData: hospitalSchema.optional(),
+    orgData: organizationSchema.optional(),
   }),
 });

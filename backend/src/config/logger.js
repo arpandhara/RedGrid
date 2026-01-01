@@ -1,5 +1,27 @@
 
+
 import winston from "winston";
+import "winston-daily-rotate-file";
+import path from "path";
+
+const logDir = "logs";
+
+const transportError = new winston.transports.DailyRotateFile({
+  filename: path.join(logDir, "error-%DATE%.log"),
+  datePattern: "YYYY-MM-DD",
+  zippedArchive: true,
+  maxSize: "20m",
+  maxFiles: "14d",
+  level: "error",
+});
+
+const transportCombined = new winston.transports.DailyRotateFile({
+  filename: path.join(logDir, "combined-%DATE%.log"),
+  datePattern: "YYYY-MM-DD",
+  zippedArchive: true,
+  maxSize: "20m",
+  maxFiles: "14d",
+});
 
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === "production" ? "info" : "debug",
@@ -8,17 +30,21 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   transports: [
-    new winston.transports.File({ filename: "error.log", level: "error" }),
-    new winston.transports.File({ filename: "combined.log" }),
+    transportError,
+    transportCombined,
   ],
 });
 
 if (process.env.NODE_ENV !== "production") {
   logger.add(
     new winston.transports.Console({
-      format: winston.format.simple(),
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      ),
     })
   );
 }
 
 export default logger;
+

@@ -1,13 +1,8 @@
 import { ClerkExpressWithAuth } from '@clerk/clerk-sdk-node';
 import User from '../models/User.js';
 
-// 1. Rename requireAuth to "protect" to match your routes
-// WE USE WithAuth so we can handle the 401 manually in the next middlewares
-// This prevents the SDK from throwing an unhandled error if no token is passed
 export const protect = ClerkExpressWithAuth();
 
-// 2. Add the "authorize" middleware
-// This checks if the user's role in MongoDB matches the allowed roles
 export const authorize = (...roles) => {
   return async (req, res, next) => {
     try {
