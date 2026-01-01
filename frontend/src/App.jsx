@@ -26,23 +26,28 @@ import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 
 // --- DASHBOARD PAGES ---
-import DonorDashboard from "./pages/donor/DonorDashboard";
-import DonorHub from './pages/donor/DonorHub'; // New Import
-import UserScanner from './pages/donor/UserScanner'; // New Scanner Import
-import HospitalDashboard from "./pages/hospital/HospitalDashboard";
-import OrgDashboard from "./pages/org/OrgDashboard";
-import NotFound from "./pages/NotFound";
-import Settings from "./pages/settings/Settings";
-import CreateRequest from "./pages/hospital/CreateRequest";
-import Inventory from "./pages/hospital/Inventory";
-import ManageRequests from "./pages/hospital/ManageRequests";
-import Notifications from "./pages/donor/Notifications";
-import History from "./pages/donor/History";
-import RewardsMarketplace from "./pages/donor/RewardsMarketplace";
-import Leaderboard from "./pages/Leaderboard"; // New Import // New Import
+// --- DASHBOARD PAGES (LAZY LOADED) ---
+const DonorDashboard = React.lazy(() => import("./pages/donor/DonorDashboard"));
+const DonorHub = React.lazy(() => import("./pages/donor/DonorHub"));
+const DonorCamps = React.lazy(() => import("./pages/donor/DonorCamps")); // New Page
+const UserScanner = React.lazy(() => import("./pages/donor/UserScanner"));
+const HospitalDashboard = React.lazy(() => import("./pages/hospital/HospitalDashboard"));
+const CampManage = React.lazy(() => import("./pages/org/CampManage"));
+const OrgDashboard = React.lazy(() => import("./pages/org/OrgDashboard"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+const Settings = React.lazy(() => import("./pages/settings/Settings"));
+const CreateRequest = React.lazy(() => import("./pages/hospital/CreateRequest"));
+const Inventory = React.lazy(() => import("./pages/hospital/Inventory"));
+const ManageRequests = React.lazy(() => import("./pages/hospital/ManageRequests"));
+const Notifications = React.lazy(() => import("./pages/donor/Notifications"));
+const History = React.lazy(() => import("./pages/donor/History"));
+const RewardsMarketplace = React.lazy(() => import("./pages/donor/RewardsMarketplace"));
+const Leaderboard = React.lazy(() => import("./pages/Leaderboard"));
+const VerifyDonation = React.lazy(() => import("./pages/hospital/VerifyDonation"));
 
-import VerifyDonation from "./pages/hospital/VerifyDonation";
+// --- COMPONENTS ---
 import OnboardingWizard from "./components/onboarding/OnboardingWizard";
+import LoadingFallback from "./components/common/LoadingFallback"; // New Import
 
 // --- AUTH COMPONENTS ---
 import PublicRoute from "./components/auth/PublicRoute";
@@ -135,6 +140,7 @@ function App() {
     <BrowserRouter>
       <AuthWrapper>
         <SocketProvider>
+        <React.Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Root />} />
 
@@ -167,7 +173,8 @@ function App() {
               element={isLoaded ? <DashboardLayout /> : <SkeletonLayout />}
             >
               <Route path="/donor/dashboard" element={<DonorDashboard />} />
-              <Route path="/donor/hub" element={<DonorHub />} /> {/* New Route */}
+              <Route path="/donor/hub" element={<DonorHub />} />
+              <Route path="/donor/camps" element={<DonorCamps />} /> {/* New Route */}
               <Route path="/donor/notifications" element={<Notifications />} />
               <Route path="/donor/notifications" element={<Notifications />} />
               <Route path="/donor/history" element={<History />} />
@@ -189,11 +196,13 @@ function App() {
               <Route path="/hospital/notifications" element={<Notifications />} />
               <Route path="/hospital/manage-requests" element={<ManageRequests />} />
               <Route path="/org/dashboard" element={<OrgDashboard />} />
+              <Route path="/org/camps" element={<CampManage />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+        </React.Suspense>
         </SocketProvider>
       </AuthWrapper>
     </BrowserRouter>

@@ -75,6 +75,11 @@ const DonorHub = () => {
         const requestId = params.get('requestId');
 
         if (tab === 'requests') setMode('requests');
+        if (tab === 'find') setMode('find');
+        if (tab === 'donate') setMode('donate');
+        if (tab === 'tickets') setMode('tickets');
+        if (tab === 'centers') setMode('centers');
+        
         if (requestId) {
              // Logic to auto-open request would go here, for now we just switch tab
              if (tab === 'requests') setMode('requests');
@@ -136,6 +141,8 @@ const DonorHub = () => {
             setLoading(false);
         }
     };
+
+
 
     return (
         <div className="min-h-screen bg-[#050505] text-white p-4 md:p-8 pb-32 font-sans selection:bg-red-500/30">
@@ -281,22 +288,46 @@ const DonorHub = () => {
                                                 </div>
                                             </div>
 
-                                            <button 
-                                                onClick={() => setSelectedTarget({ 
-                                                    _id: opp._id, 
-                                                    type: 'request', 
-                                                    name: opp.requester?.hospitalProfile?.hospitalName || opp.requester?.orgProfile?.organizationName || `${opp.requester?.firstName} ${opp.requester?.lastName}`,
-                                                    bloodGroup: opp.bloodGroup,
-                                                    location: opp.location,
-                                                    unitsNeeded: opp.unitsNeeded,
-                                                    urgency: opp.urgency,
-                                                    patientName: opp.patientName,
-                                                    acceptedBy: opp.acceptedBy // Pass acceptedBy list
-                                                })}
-                                                className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-                                            >
-                                                View Request Details <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                                            </button>
+                                            {(() => {
+                                                const isAccepted = opp.acceptedBy?.some(a => a.donorId === user?._id && a.status === 'accepted');
+                                                
+                                                return (
+                                                    <button 
+                                                        onClick={() => {
+                                                            if (isAccepted) {
+                                                                setMode('tickets');
+                                                            } else {
+                                                                setSelectedTarget({ 
+                                                                    _id: opp._id, 
+                                                                    type: 'request', 
+                                                                    name: opp.requester?.hospitalProfile?.hospitalName || opp.requester?.orgProfile?.organizationName || `${opp.requester?.firstName} ${opp.requester?.lastName}`,
+                                                                    bloodGroup: opp.bloodGroup,
+                                                                    location: opp.location,
+                                                                    unitsNeeded: opp.unitsNeeded,
+                                                                    urgency: opp.urgency,
+                                                                    patientName: opp.patientName,
+                                                                    acceptedBy: opp.acceptedBy 
+                                                                });
+                                                            }
+                                                        }}
+                                                        className={`w-full font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] ${
+                                                            isAccepted 
+                                                            ? 'bg-green-600 hover:bg-green-500 text-white' 
+                                                            : 'bg-white hover:bg-zinc-200 text-black'
+                                                        }`}
+                                                    >
+                                                        {isAccepted ? (
+                                                            <>
+                                                                <Check size={18} /> Accepted - View Ticket
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                View Request Details <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
@@ -389,7 +420,7 @@ const DonorHub = () => {
                                                 : 'bg-white hover:bg-zinc-200 text-black shadow-lg shadow-white/5'
                                             }`}
                                         >
-                                            {result.hasRequested ? 'Request Sent' : <>Request Blood <ArrowRight size={14}/></>}
+                                            {result.hasRequested ? 'Requested' : <>Request Blood <ArrowRight size={14}/></>}
                                         </button>
                                     </div>
                                 ))}
@@ -454,22 +485,43 @@ const DonorHub = () => {
                                                     </div>
                                                 </div>
 
-                                                <button 
-                                                    onClick={() => setSelectedTarget({ 
-                                                        _id: req._id, 
-                                                        type: 'request', 
-                                                        name: req.requester?.firstName || 'Requester',
-                                                        bloodGroup: req.bloodGroup,
-                                                        isDirect: true,
-                                                        location: req.location || req.requester?.location,
-                                                        unitsNeeded: req.unitsNeeded,
-                                                        urgency: req.urgency,
-                                                        patientName: req.patientName
-                                                    })}
-                                                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-900/20"
-                                                >
-                                                    Respond Now
-                                                </button>
+                                                {(() => {
+                                                    const isAccepted = req.acceptedBy?.some(a => a.donorId === user?._id && a.status === 'accepted');
+                                                    
+                                                    return (
+                                                        <button 
+                                                            onClick={() => {
+                                                                if (isAccepted) {
+                                                                    setMode('tickets');
+                                                                } else {
+                                                                    setSelectedTarget({ 
+                                                                        _id: req._id, 
+                                                                        type: 'request', 
+                                                                        name: req.requester?.firstName || 'Requester',
+                                                                        bloodGroup: req.bloodGroup,
+                                                                        isDirect: true,
+                                                                        location: req.location || req.requester?.location,
+                                                                        unitsNeeded: req.unitsNeeded,
+                                                                        urgency: req.urgency,
+                                                                        patientName: req.patientName,
+                                                                        acceptedBy: req.acceptedBy
+                                                                    });
+                                                                }
+                                                            }}
+                                                            className={`w-full font-bold py-3.5 rounded-xl transition-all shadow-lg ${
+                                                                isAccepted 
+                                                                ? 'bg-green-600 hover:bg-green-500 text-white shadow-green-900/20' 
+                                                                : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/20'
+                                                            }`}
+                                                        >
+                                                             {isAccepted ? (
+                                                                <span className="flex items-center justify-center gap-2">
+                                                                    <Check size={18} /> Accepted - View Ticket
+                                                                </span>
+                                                            ) : 'Respond Now'}
+                                                        </button>
+                                                    );
+                                                })()}
                                             </div>
                                         ))}
                                     </div>
@@ -637,6 +689,93 @@ const DonorHub = () => {
                         </motion.div>
                     )}
 
+                    {/* MODE 5: FIND CENTERS (CAMPS) */}
+                    {mode === 'centers' && (
+                         <motion.div 
+                            key="centers"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="space-y-6"
+                        >
+                            {/* Search Bar for Centers */}
+                            <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/5 p-2 rounded-[2rem] mb-6 flex flex-col md:flex-row gap-2 shadow-2xl">
+                                <div className="flex-1 relative group">
+                                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+                                        <MapPin className="text-zinc-500 group-focus-within:text-white transition-colors" size={18} />
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={searchQuery.city}
+                                        onChange={(e) => setSearchQuery({...searchQuery, city: e.target.value})}
+                                        className="w-full bg-transparent border-none rounded-full pl-12 pr-4 py-4 text-white focus:ring-0 placeholder-zinc-600 font-medium"
+                                        placeholder="Enter City to find camps..."
+                                    />
+                                </div>
+                                <button 
+                                    onClick={() => handleSearchCenters()}
+                                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-10 py-4 rounded-[1.5rem] transition-all shadow-lg shadow-red-900/20 active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    {loading ? '...' : <><Search size={20} /> Find Camps</>}
+                                </button>
+                            </div>
+
+                            {/* Centers List */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {searchResults.map((center) => (
+                                    <div key={center._id} className="bg-[#0A0A0A] border border-white/5 rounded-3xl p-6 hover:border-zinc-700 transition-all duration-300 hover:-translate-y-1 group relative overflow-hidden">
+                                        {center.isCamp && (
+                                            <div className="absolute top-0 right-0 p-4">
+                                                <span className="bg-yellow-500/10 text-yellow-500 text-[10px] font-bold px-2 py-1 rounded border border-yellow-500/20 flex items-center gap-1">
+                                                    <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"/> CAMP
+                                                </span>
+                                            </div>
+                                        )}
+                                        
+                                        <div className="flex items-start gap-4 mb-4">
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${center.type === 'hospital' ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                {center.type === 'hospital' ? <ShieldCheck size={24} /> : <Navigation size={24} />}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-white text-lg leading-tight mb-1">{center.name}</h3>
+                                                <p className="text-zinc-500 text-sm flex items-center gap-1">
+                                                    <MapPin size={12} /> {center.location?.address}, {center.location?.city}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-3 mt-4">
+                                            <a 
+                                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(center.name + ' ' + center.location?.address)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors border border-zinc-800"
+                                            >
+                                                <MapPin size={14} /> Get Directions
+                                            </a>
+                                            {center.phone && (
+                                                <a 
+                                                    href={`tel:${center.phone}`}
+                                                    className="flex-1 bg-white hover:bg-zinc-200 text-black font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+                                                >
+                                                    <Phone size={14} /> Call
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                             
+                            {searchResults.length === 0 && !loading && (
+                                <div className="text-center py-20 opacity-50">
+                                    <MapPin size={48} className="mx-auto mb-4 text-zinc-700"/>
+                                    <p className="text-zinc-500">Search for nearby hospitals or donation camps</p>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+
                 </AnimatePresence>
             </div>
 
@@ -648,6 +787,11 @@ const DonorHub = () => {
                 onViewTicket={() => {
                     setSelectedTarget(null);
                     setMode('tickets');
+                }}
+                onRequestSent={(targetId) => {
+                    setSearchResults(prev => prev.map(r => 
+                        r._id === targetId ? { ...r, hasRequested: true } : r
+                    ));
                 }}
             />
         </div>

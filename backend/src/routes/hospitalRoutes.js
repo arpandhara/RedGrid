@@ -6,7 +6,7 @@ const router = express.Router();
 
 // Middleware for all hospital routes
 router.use(protect);
-router.use(authorize('hospital'));
+router.use(authorize('hospital', 'organization'));
 
 router.get('/stats', getDashboardStats);
 router.get('/inventory', getInventory);

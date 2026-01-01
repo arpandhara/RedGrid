@@ -213,12 +213,12 @@ const DonorDashboard = () => {
                  <h2 className="text-2xl font-bold text-white mb-2">Ready to Save Lives?</h2>
                  <p className="text-zinc-400 mb-6 max-w-lg">Find nearby donation centers and schedule your next donation appointment today.</p>
                  <div className="flex flex-wrap gap-4">
-                    <Link to="/donor/camps" className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-colors inline-flex items-center gap-2">
+                    <Link to="/donor/hub?tab=centers" className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-colors inline-flex items-center gap-2">
                         <Search size={18} /> Find Nearby Centers
                     </Link>
-                    <button className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 px-6 rounded-xl transition-colors inline-flex items-center gap-2 border border-zinc-700">
-                        <Search size={18} /> View Blood Requests
-                    </button>
+                    <Link to="/donor/hub?tab=donate" className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 px-6 rounded-xl transition-colors inline-flex items-center gap-2 border border-zinc-700">
+                        <Droplet size={18} /> View Blood Requests
+                    </Link>
                  </div>
              </div>
              {/* Decorative Circles */}
@@ -308,7 +308,7 @@ const DonorDashboard = () => {
                 <div>
                     <div className="flex items-center justify-between mb-4">
                          <h3 className="text-xl font-bold text-white">Nearby</h3>
-                         <Link to="/donor/camps" className="text-xs font-bold text-red-500 hover:text-red-400">View All</Link>
+                         <Link to="/donor/hub?tab=centers" className="text-xs font-bold text-red-500 hover:text-red-400">View All</Link>
                     </div>
                     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden h-64 relative group">
                         <MapContainer 
