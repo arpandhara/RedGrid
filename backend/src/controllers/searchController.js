@@ -169,3 +169,29 @@ export const searchCenters = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+
+
+// @desc    Reverse Geocode Proxy
+// @route   GET /api/search/reverse
+export const reverseGeocodeProxy = async (req, res) => {
+    try {
+        const { lat, lon } = req.query;
+        if (!lat || !lon) {
+            return res.status(400).json({ success: false, message: 'Lat/Lon required' });
+        }
+
+        const data = await reverseGeocode(lat, lon);
+
+        if (!data) {
+            return res.status(404).json({ success: false, message: 'Address not found' });
+        }
+
+        res.status(200).json(data);
+
+    } catch (error) {
+        console.error("Reverse Proxy Error:", error);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
