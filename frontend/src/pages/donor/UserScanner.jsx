@@ -45,31 +45,48 @@ const UserScanner = () => {
     try {
         const payload = JSON.parse(textInfo);
         
-        // Call Backend to Verify
-        const res = await api.post('/donations/verify', { 
-            donorId: payload.donorId, // From QR
-            requestId: payload.requestId, // From QR (Critical for P2P link)
-            timestamp: payload.timestamp 
-        });
-
-        setVerificationData(res.data.data);
-        toast.success("Donation Verified! Thank you.");
+        // Handle different QR types
+        if (payload.type === 'digital_id') {
+            // Digital ID Card - Just verify donor exists
+            const res = await api.get(`/users/${payload.donorId}`);
+            setVerificationData({
+                donorName: `${res.data.data.firstName} ${res.data.data.lastName}`,
+                bloodGroup: res.data.data.donorProfile?.bloodGroup,
+                verified: true,
+                type: 'identity'
+            });
+            toast.success("Donor Identity Verified!");
+        } else if (payload.type === 'donation_ticket') {
+            // Donation Ticket - Full donation verification
+            const res = await api.post('/donations/verify', { 
+                donorId: payload.donorId,
+                requestId: payload.requestId,
+                timestamp: payload.timestamp 
+            });
+            setVerificationData({
+                ...res.data.data,
+                type: 'donation'
+            });
+            toast.success("Donation Verified! Thank you.");
+        } else {
+            throw new Error("Invalid QR Code format");
+        }
 
     } catch (error) {
         console.error(error);
-        const msg = error.response?.data?.message || "Verification Failed";
+        const msg = error.response?.data?.message || error.message || "Verification Failed";
         toast.error(msg);
         
-        // If permission error, show clear message
         if (error.response?.status === 403) {
-             setScanResult('error'); // Block re-scan momentarily or show error UI
+             setScanResult('error');
         } else {
-             setScanResult(null); // Reset to try again? 
+             setScanResult(null);
         }
     } finally {
         setVerifying(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-black text-white p-4 font-sans flex flex-col items-center justify-center">
