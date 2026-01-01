@@ -235,7 +235,7 @@ export const acceptRequest = async (req, res) => {
         console.log(`[AcceptLogic] Request ${requestId} accepted by ${donor.firstName} (${donor._id}).`);
         console.log(`[AcceptLogic] Notifying Requester ID: ${requesterIdStr}`);
 
-        // Persist Notification
+        // Persist Notification FIRST
         await Notification.create({
             recipient: requesterIdStr,
             type: 'status_update',
@@ -247,7 +247,11 @@ export const acceptRequest = async (req, res) => {
         // Socket Emit to Requester ONLY
         const io = getIO();
 
-        // Explicitly check we are not broadcasting
+        // Debug: Check if the room has connected sockets
+        const roomSockets = io.sockets.adapter.rooms.get(requesterIdStr);
+        console.log(`[Socket Debug] Room ${requesterIdStr} has ${roomSockets?.size || 0} sockets connected`);
+
+        // Emit to the requester's room
         io.to(requesterIdStr).emit('notification', {
             type: 'status_update',
             title: 'Donor Found!',
@@ -255,9 +259,12 @@ export const acceptRequest = async (req, res) => {
             requestId: request._id
         });
 
+        console.log(`[Socket Debug] Emitted 'notification' event to room: ${requesterIdStr}`);
+
         // Global Feed Refresh Signal (Silent payload)
         // This tells clients to just re-fetch data, no message displayed
         io.emit('request_update', { action: 'refresh' });
+
 
         // 5. Send Email to Requester (Optimized: Non-blocking)
         const requesterUser = await User.findById(requesterId);
@@ -588,6 +595,9 @@ export const rejectRequest = async (req, res) => {
         const requesterId = request.requester; // ID of the user who sent the request
         const requesterIdStr = requesterId.toString();
 
+        console.log(`[RejectLogic] Request ${request._id} rejected by ${req.user.firstName}`);
+        console.log(`[RejectLogic] Notifying Requester ID: ${requesterIdStr}`);
+
         // Persist Notification
         await Notification.create({
             recipient: requesterIdStr,
@@ -599,6 +609,11 @@ export const rejectRequest = async (req, res) => {
 
         // Real-time Notification
         const io = getIO();
+
+        // Debug: Check socket room
+        const roomSockets = io.sockets.adapter.rooms.get(requesterIdStr);
+        console.log(`[Socket Debug] Room ${requesterIdStr} has ${roomSockets?.size || 0} sockets connected`);
+
         io.to(requesterIdStr).emit('notification', {
             type: 'status_update',
             title: 'Request Rejected',
@@ -606,8 +621,11 @@ export const rejectRequest = async (req, res) => {
             requestId: request._id
         });
 
+        console.log(`[Socket Debug] Emitted 'notification' event to room: ${requesterIdStr}`);
+
         // Refresh Feed
         io.emit('request_update', { action: 'refresh' });
+
 
         // 5. Send Email to Requester (Non-blocking)
         const requesterUser = await User.findById(requesterId);
