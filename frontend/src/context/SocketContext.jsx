@@ -21,7 +21,10 @@ export const SocketProvider = ({ children }) => {
 
   // Toast display helper (defined outside useEffect for reuse)
   const showNotificationToast = (data) => {
-    const toastId = data.requestId || data._id || `toast-${Date.now()}`;
+    // FORCE UNIQUE ID: Append timestamp to ensure every new event is shown
+    // avoiding duplicate suppression by the toast library
+    const toastId = `notification-${data.requestId || 'gen'}-${Date.now()}`;
+    
     toast((t) => (
       <div className="flex flex-col gap-1 min-w-[200px]">
         <span className="font-bold text-red-500">
@@ -77,10 +80,13 @@ export const SocketProvider = ({ children }) => {
       const newSocket = io(baseUrl, {
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: Infinity, // Never stop trying
+        reconnectionAttempts: Infinity,
         reconnectionDelay: 500,
         reconnectionDelayMax: 3000,
-        timeout: 10000,
+        timeout: 20000,
+        // Explicit Keep-Alive
+        pingInterval: 25000, 
+        pingTimeout: 20000,
         forceNew: false,
         autoConnect: true,
       });
