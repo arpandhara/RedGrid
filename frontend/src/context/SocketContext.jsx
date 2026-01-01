@@ -84,9 +84,6 @@ export const SocketProvider = ({ children }) => {
         reconnectionDelay: 500,
         reconnectionDelayMax: 3000,
         timeout: 20000,
-        // Explicit Keep-Alive
-        pingInterval: 25000, 
-        pingTimeout: 20000,
         forceNew: false,
         autoConnect: true,
       });
