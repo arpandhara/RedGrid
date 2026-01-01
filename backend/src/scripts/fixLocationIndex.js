@@ -1,19 +1,10 @@
 /**
- * Migration Script: Fix 2dsphere Index
+ * Migration Script: Fix 2dsphere Index (Sparse)
  * 
  * PURPOSE:
- * The old `location` index causes errors when a user document has
- * `location: { address, city, state }` but NO `type: 'Point'` or coordinates.
- * The new partial index only applies to documents where `location.type` = 'Point'.
- * 
- * HOW TO RUN (on MongoDB Atlas / your DB):
- * 1. Connect to your database (e.g., via `mongosh` or Atlas Data Explorer).
- * 2. Run the commands below.
- * 
- * OR you can run this script locally:
- * ```
- * node backend/src/scripts/fixLocationIndex.js
- * ```
+ * Partial indexes don't work well with $near queries.
+ * Using a SPARSE index instead - it only indexes documents where
+ * the location field EXISTS, but doesn't require a specific value.
  */
 
 import mongoose from 'mongoose';
@@ -39,12 +30,16 @@ const runMigration = async () => {
             }
         }
 
-        // Step 2: Create the new partial index
+        // Step 2: Create a SPARSE 2dsphere index
+        // Sparse index only includes documents where 'location' field exists
         await collection.createIndex(
             { location: "2dsphere" },
-            { partialFilterExpression: { "location.type": "Point" } }
+            {
+                sparse: true,  // Only index docs where location exists
+                name: "location_2dsphere_sparse"
+            }
         );
-        console.log("Created new PARTIAL 'location_2dsphere' index.");
+        console.log("Created new SPARSE 'location_2dsphere' index.");
 
         console.log("Migration complete!");
         process.exit(0);

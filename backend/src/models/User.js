@@ -45,10 +45,10 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes
-// IMPORTANT: Partial index so users without coordinates don't cause errors
+// SPARSE: Only indexes documents where 'location' field exists
 userSchema.index(
   { "location": "2dsphere" },
-  { partialFilterExpression: { "location.type": "Point" } }
+  { sparse: true }
 );
 
 // This index handles the "Time Bomb" feature for temporary events
