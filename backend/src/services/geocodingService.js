@@ -39,3 +39,30 @@ export const geocodeAddress = async (query) => {
         return null;
     }
 };
+
+/**
+ * Reverse Geocodes coordinates to an address.
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @returns {Promise<object|null>} - Returns address object or null.
+ */
+export const reverseGeocode = async (lat, lon) => {
+    if (!lat || !lon) return null;
+
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+        // Nominatim requires a User-Agent
+        const res = await fetch(url, { headers: { 'User-Agent': 'BloodDonationApp/1.0' } });
+
+        if (!res.ok) {
+            console.error(`Reverse Geocoding HTTP Error: ${res.status}`);
+            return null;
+        }
+
+        const data = await res.json();
+        return data;
+    } catch (error) {
+        console.error("Reverse geocoding service failed:", error.message);
+        return null;
+    }
+};

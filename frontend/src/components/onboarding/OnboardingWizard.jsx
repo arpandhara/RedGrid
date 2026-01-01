@@ -97,10 +97,12 @@ const OnboardingWizard = () => {
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          const res = await axios.get(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          const address = res.data.address;
+          // Use Backend Proxy to avoid CORS/User-Agent issues with Nominatim
+          const res = await api.get('/search/reverse', {
+            params: { lat: latitude, lon: longitude }
+          });
+          const data = res.data;
+          const address = data.address;
 
           setFormData((prev) => ({
             ...prev,
