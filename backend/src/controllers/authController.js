@@ -97,7 +97,15 @@ export const onboardUser = asyncHandler(async (req, res) => {
       }
     }
 
+    // CRITICAL: If we STILL don't have coordinates, ensure 'type' is not set
+    // This prevents MongoDB 2dsphere index errors
+    if (!updateData.location.coordinates) {
+      delete updateData.location.type;
+      delete updateData.location.coordinates; // Redundant but explicit
+    }
+
   }
+
   // ====================================================
 
   // Attach Role-Specific Data to the correct Sub-Schema

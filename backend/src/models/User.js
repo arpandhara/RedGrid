@@ -7,30 +7,30 @@ const userSchema = new mongoose.Schema({
   // --- CORE IDENTITY ---
   clerkId: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
-  role: { 
-    type: String, 
-    enum: ['donor', 'organization', 'hospital', 'admin'], 
-    default: 'donor' 
+  role: {
+    type: String,
+    enum: ['donor', 'organization', 'hospital', 'admin'],
+    default: 'donor'
   },
   isOnboarded: { type: Boolean, default: false },
 
   // --- PASSWORD RESET FIELDS ---
   resetPasswordToken: { type: String, default: null },
   resetPasswordExpires: { type: Date, default: null },
-  
+
   // --- COMMON DETAILS ---
   firstName: String,
   lastName: String,
   phone: String,
-  
+
   // --- LOCATION ---
   location: {
     address: String,
     city: String,
     state: String,
     type: {
-      type: String, 
-      enum: ['Point'], 
+      type: String,
+      enum: ['Point'],
     },
     coordinates: {
       type: [Number], // [longitude, latitude]
@@ -45,7 +45,12 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes
-userSchema.index({ "location": "2dsphere" });
+// IMPORTANT: Partial index so users without coordinates don't cause errors
+userSchema.index(
+  { "location": "2dsphere" },
+  { partialFilterExpression: { "location.type": "Point" } }
+);
+
 // This index handles the "Time Bomb" feature for temporary events
 userSchema.index({ "orgProfile.accountExpiresAt": 1 }, { expireAfterSeconds: 0 });
 userSchema.index({ "donorProfile.bloodGroup": 1 });
