@@ -609,10 +609,10 @@ export const rejectRequest = async (req, res) => {
         // Refresh Feed
         io.emit('request_update', { action: 'refresh' });
 
-        // 5. Send Email to Requester
+        // 5. Send Email to Requester (Non-blocking)
         const requesterUser = await User.findById(requesterId);
         if (requesterUser && requesterUser.email) {
-            await sendEmail(
+            sendEmail(
                 requesterUser.email,
                 `Request Declined`,
                 `<div style="font-family: Arial, sans-serif;">
@@ -620,10 +620,11 @@ export const rejectRequest = async (req, res) => {
                     <p>We are sorry, but <strong>${req.user.firstName}</strong> is unable to fulfill your blood request at this time.</p>
                     <p>We recommend broadcasting your request to other nearby donors.</p>
                   </div>`
-            );
+            ).catch(err => console.error("Background email failed:", err.message));
         }
 
         res.status(200).json({ success: true, data: request });
+
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
