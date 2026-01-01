@@ -7,5 +7,6 @@ export const hospitalSchema = z.object({
     website: z.string().url().optional(),
     bedsCount: z.number().int().nonnegative().optional(),
     emergencyPhone: z.string().min(10).optional(),
-    type: z.enum(['Government', 'Private', 'Semi-Private']).optional(),
+    type: z.enum(['government', 'private', 'ngo']).optional(),
+
 });

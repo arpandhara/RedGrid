@@ -360,10 +360,11 @@ const OnboardingWizard = () => {
                         name="gender"
                         value={formData.gender}
                         onChange={handleChange}
-                        options={["Male", "Female", "Other"]}
-
+                        options={["male", "female", "other"]}
                       />
+
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <FloatingInput label="Date of Birth" type="date" name="dob" value={formData.dob} onChange={handleChange} />
                       <FloatingInput label="Weight (kg)" type="number" name="weight" value={formData.weight} onChange={handleChange} />
@@ -460,7 +461,7 @@ const OnboardingWizard = () => {
                     <FloatingInput label="Hospital Name" name="hospitalName" value={formData.hospitalName} onChange={handleChange} icon={<Building2 size={18} />} />
                     <div className="grid grid-cols-2 gap-4">
                       <FloatingInput label="Registration / GST No." name="registrationNumber" value={formData.registrationNumber} onChange={handleChange} />
-                      <SelectInput label="Hospital Type" name="type" value={formData.type} onChange={handleChange} options={["Government", "Private", "Semi-Private"]} />
+                      <SelectInput label="Hospital Type" name="type" value={formData.type} onChange={handleChange} options={["government", "private", "ngo"]} />
 
                     </div>
                     <div className="space-y-2 pt-2">
