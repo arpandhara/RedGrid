@@ -126,17 +126,18 @@ export const SocketProvider = ({ children }) => {
         const receivedTime = new Date().toISOString();
         console.log(`🔔 [${receivedTime}] New Notification Received:`, data);
         
-        // Play sound
-        try {
-            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Simple beep
-            audio.play().catch(e => console.log('Audio blocked:', e));
-        } catch (e) {
-            // Ignore audio errors
-        }
-
+        // Update state
         setUnreadCount(prev => prev + 1);
         showNotificationToast(data);
       });
+
+      // HEARTBEAT: Re-join room every 30 seconds to ensure server knows we are here
+      // (Fixes issues where server restarts and loses room members)
+      const heartbeatInterval = setInterval(() => {
+        if (newSocket.connected) {
+           newSocket.emit('join', user._id);
+        }
+      }, 30000);
 
       // Global updates
       newSocket.on('request_update', (data) => {
@@ -148,6 +149,7 @@ export const SocketProvider = ({ children }) => {
       // Cleanup
       return () => {
         console.log("Disconnecting socket...");
+        clearInterval(heartbeatInterval);
         newSocket.disconnect();
         socketRef.current = null;
       };
