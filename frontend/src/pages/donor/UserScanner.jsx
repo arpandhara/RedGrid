@@ -43,10 +43,27 @@ const UserScanner = () => {
   const handleVerify = async (textInfo) => {
     setVerifying(true);
     try {
-        const payload = JSON.parse(textInfo);
+        let payload;
+        try {
+            payload = JSON.parse(textInfo);
+        } catch (parseError) {
+            throw new Error("Invalid QR: Not a valid JSON format");
+        }
+        
+        // Determine type: explicit or inferred from structure
+        let qrType = payload.type;
+        
+        // Legacy support: Infer type from payload structure
+        if (!qrType) {
+            if (payload.donorId && payload.requestId) {
+                qrType = 'donation_ticket';
+            } else if (payload.donorId) {
+                qrType = 'digital_id';
+            }
+        }
         
         // Handle different QR types
-        if (payload.type === 'digital_id') {
+        if (qrType === 'digital_id') {
             // Digital ID Card - Just verify donor exists
             const res = await api.get(`/users/${payload.donorId}`);
             setVerificationData({
@@ -56,7 +73,7 @@ const UserScanner = () => {
                 type: 'identity'
             });
             toast.success("Donor Identity Verified!");
-        } else if (payload.type === 'donation_ticket') {
+        } else if (qrType === 'donation_ticket') {
             // Donation Ticket - Full donation verification
             const res = await api.post('/donations/verify', { 
                 donorId: payload.donorId,
@@ -69,7 +86,8 @@ const UserScanner = () => {
             });
             toast.success("Donation Verified! Thank you.");
         } else {
-            throw new Error("Invalid QR Code format");
+            console.error("Unknown QR payload:", payload);
+            throw new Error("Unrecognized QR Code. Please scan a valid Donor ID or Donation Ticket.");
         }
 
     } catch (error) {
