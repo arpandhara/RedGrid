@@ -10,7 +10,8 @@ export const donorSchema = z.object({
     lastDonationDate: z.string().datetime().nullable().optional().or(z.string().nullable()),
     isAvailable: z.boolean().optional(),
     healthConditions: z.array(z.string()).optional(),
-    medications: z.array(z.string()).optional(),
+    medications: z.string().optional(), // Mongoose stores as String
+
     hasTattooOrPiercing: z.boolean().optional(),
     hasTravelledRecently: z.boolean().optional(),
 });
