@@ -1,4 +1,3 @@
-// frontend/src/context/SocketContext.jsx
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import useAuthStore from '../store/useAuthStore';
@@ -19,10 +18,7 @@ export const SocketProvider = ({ children }) => {
 
   const markRead = () => setUnreadCount(0);
 
-  // Toast display helper (defined outside useEffect for reuse)
   const showNotificationToast = (data) => {
-    // FORCE UNIQUE ID: Append timestamp to ensure every new event is shown
-    // avoiding duplicate suppression by the toast library
     const toastId = `notification-${data.requestId || 'gen'}-${Date.now()}`;
     
     toast((t) => (
@@ -47,7 +43,7 @@ export const SocketProvider = ({ children }) => {
       </div>
     ), {
       id: toastId,
-      duration: 8000, // Longer duration
+      duration: 8000,
       style: {
         background: '#18181b',
         border: '1px solid #27272a',
