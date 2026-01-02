@@ -76,7 +76,7 @@ export const SocketProvider = ({ children }) => {
 
       // 2. Initialize Socket with Stable Settings
       const newSocket = io(baseUrl, {
-        transports: ['websocket'], // Force WebSocket (more stable than polling)
+        transports: ['websocket', 'polling'], // WebSocket preferred, polling as fallback
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,

@@ -68,22 +68,29 @@ const HospitalDashboard = () => {
         }, ...prev].slice(0, 10)); // Keep last 10
     };
 
-    socket.on('notification', handleNewActivity);
-    socket.on('donation_verified', (data) => handleNewActivity({
+    // Create named handler for donation_verified
+    const handleDonationVerified = (data) => handleNewActivity({
         type: 'donation',
         title: 'Donation Verified',
         message: `${data.bloodGroup} donation verified for ${data.donorName || 'Donor'}`
-    }));
-    socket.on('new_request_broadcast', (data) => handleNewActivity({
+    });
+    
+    // Create named handler for new_request_broadcast
+    const handleNewBroadcast = (data) => handleNewActivity({
         type: 'request',
         title: 'Request Broadcasted',
-        message: `New request created` // Backend sends action: 'refresh', we might need to fetch details or just show generic alert
-    }));
+        message: `New request created`
+    });
+
+    socket.on('notification', handleNewActivity);
+    socket.on('donation_verified', handleDonationVerified);
+    socket.on('new_request_broadcast', handleNewBroadcast);
 
     return () => {
-        socket.off('notification');
-        socket.off('donation_verified');
-        socket.off('request_created');
+        // FIX: Use explicit handler references to prevent removing handlers from other components
+        socket.off('notification', handleNewActivity);
+        socket.off('donation_verified', handleDonationVerified);
+        socket.off('new_request_broadcast', handleNewBroadcast);
     };
   }, [socket]);
 

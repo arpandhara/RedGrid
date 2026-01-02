@@ -68,7 +68,7 @@ const DonorHub = () => {
         }
     };
 
-    // URL Params Handling & Socket Listeners
+    // URL Params Handling (Mode Switching)
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const tab = params.get('tab');
@@ -84,36 +84,35 @@ const DonorHub = () => {
              // Logic to auto-open request would go here, for now we just switch tab
              if (tab === 'requests') setMode('requests');
         }
+    }, [location.search]);
 
-        // Socket Listeners for Real-time Updates
-        if (socket) {
-            socket.on('request_update', () => {
-                console.log("Socket: Global update received. Refreshing feed...");
-                setTimeout(() => {
-                    if (mode === 'donate') fetchFeed();
-                    if (mode === 'requests' || mode === 'tickets') fetchMyRequests();
-                }, 500); // 500ms delay to ensure DB consistency
-            });
+    // Socket Listeners (STABLE - separate from mode changes)
+    // FIX: Using explicit handler references and only [socket] dependency
+    // to prevent unintended cleanup when mode changes
+    useEffect(() => {
+        if (!socket) return;
 
-            socket.on('new_request_broadcast', () => {
-                 if (mode === 'donate') fetchFeed();
-            });
-            
-            socket.on('notification', () => {
-                 // specific logic if needed, usually notification component handles toast
-                 // But we can refresh requests if we get a notification about it
-                 if (mode === 'requests' || mode === 'tickets') fetchMyRequests();
-            });
-        }
+        const handleSocketUpdate = () => {
+            console.log("Socket: Update received. Refreshing data...");
+            // Delay to ensure DB consistency
+            setTimeout(() => {
+                fetchFeed();
+                fetchMyRequests();
+            }, 500);
+        };
+
+        socket.on('request_update', handleSocketUpdate);
+        socket.on('new_request_broadcast', handleSocketUpdate);
+        socket.on('notification', handleSocketUpdate);
 
         return () => {
-            if (socket) {
-                socket.off('request_update');
-                socket.off('new_request_broadcast');
-                socket.off('notification');
-            }
+            // FIX: Pass the SAME handler reference to socket.off()
+            // This prevents removing handlers from SocketContext
+            socket.off('request_update', handleSocketUpdate);
+            socket.off('new_request_broadcast', handleSocketUpdate);
+            socket.off('notification', handleSocketUpdate);
         };
-    }, [socket, mode, location.search]);
+    }, [socket]); // Only socket dependency - no mode!
 
     // Initial Load & Refresh on Mode Change
     useEffect(() => {
