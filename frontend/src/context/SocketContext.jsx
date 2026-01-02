@@ -1,3 +1,4 @@
+// frontend/src/context/SocketContext.jsx
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import useAuthStore from '../store/useAuthStore';
@@ -18,7 +19,9 @@ export const SocketProvider = ({ children }) => {
 
   const markRead = () => setUnreadCount(0);
 
+  // Toast display helper
   const showNotificationToast = (data) => {
+    // FORCE UNIQUE ID: Append timestamp to ensure every new event is shown
     const toastId = `notification-${data.requestId || 'gen'}-${Date.now()}`;
     
     toast((t) => (
@@ -43,7 +46,7 @@ export const SocketProvider = ({ children }) => {
       </div>
     ), {
       id: toastId,
-      duration: 8000,
+      duration: 8000, 
       style: {
         background: '#18181b',
         border: '1px solid #27272a',
@@ -59,18 +62,20 @@ export const SocketProvider = ({ children }) => {
 
       console.log("Initializing socket connection to:", baseUrl, "for user:", user._id);
 
-      // Fetch initial unread count
-      const fetchUnreadCount = async () => {
+      // Helper: Sync unread count (Runs on Load & Reconnect)
+      const syncNotifications = async () => {
         try {
           const res = await api.get('/notifications/unread-count');
           if (res.data.success) {
             setUnreadCount(res.data.count);
           }
         } catch (err) {
-          console.error("Failed to fetch unread count", err);
+          console.error("Failed to sync notifications", err);
         }
       };
-      fetchUnreadCount();
+
+      // Initial Sync
+      syncNotifications();
 
       // Create socket with aggressive keep-alive settings
       const newSocket = io(baseUrl, {
@@ -86,23 +91,26 @@ export const SocketProvider = ({ children }) => {
 
       socketRef.current = newSocket;
 
-      // Connection established
+      // 1. Connection established
       newSocket.on('connect', () => {
         console.log("✅ Socket Connected:", newSocket.id);
         newSocket.emit('join', user._id);
+        // FIX: Re-sync immediately on connect to catch missed updates
+        syncNotifications();
       });
 
-      // Socket.IO manager level reconnect
+      // 2. Socket.IO manager level reconnect
       newSocket.io.on('reconnect', (attempt) => {
         console.log(`🔄 Socket.IO Manager reconnected after ${attempt} attempts`);
         newSocket.emit('join', user._id);
-        fetchUnreadCount(); // Refresh count on reconnect
+        syncNotifications();
       });
 
-      // Socket level reconnect
+      // 3. Socket level reconnect
       newSocket.on('reconnect', () => {
         console.log("🔄 Socket reconnected, rejoining room:", user._id);
         newSocket.emit('join', user._id);
+        syncNotifications();
       });
 
       newSocket.on('connect_error', (err) => {
@@ -111,13 +119,12 @@ export const SocketProvider = ({ children }) => {
 
       newSocket.on('disconnect', (reason) => {
         console.warn("⚠️ Socket Disconnected:", reason);
-        // If server disconnected us, reconnect manually
         if (reason === 'io server disconnect') {
           newSocket.connect();
         }
       });
 
-      // MAIN: Listen for notifications
+      // 4. MAIN: Listen for notifications
       newSocket.on('notification', (data) => {
         const receivedTime = new Date().toISOString();
         console.log(`🔔 [${receivedTime}] New Notification Received:`, data);
@@ -127,18 +134,18 @@ export const SocketProvider = ({ children }) => {
         showNotificationToast(data);
       });
 
-      // HEARTBEAT: Re-join room every 30 seconds to ensure server knows we are here
-      // (Fixes issues where server restarts and loses room members)
+      // 5. Global updates (e.g. Feed refreshes)
+      newSocket.on('request_update', (data) => {
+        console.log("📡 Global request update:", data);
+      });
+
+      // 6. HEARTBEAT: Re-join room every 30 seconds
+      // Ensures the server knows we are still active even if no traffic flows
       const heartbeatInterval = setInterval(() => {
         if (newSocket.connected) {
            newSocket.emit('join', user._id);
         }
       }, 30000);
-
-      // Global updates
-      newSocket.on('request_update', (data) => {
-        console.log("📡 Global request update:", data);
-      });
 
       setSocket(newSocket);
 
