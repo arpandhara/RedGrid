@@ -39,20 +39,21 @@ const Notifications = () => {
         }, 500);
     };
 
-    socket.on('notification', handleNewNotification);
-    
-    // CRITICAL FIX: Also listen for global status updates (e.g. someone else accepted a request)
-    // This ensures the "Accept" button turns into "Fulfilled" instantly for other donors
-    socket.on('request_update', () => {
+    const handleRequestUpdate = () => {
         console.log("Socket: Global Request Update. Refreshing notifications...");
         setTimeout(() => {
             fetchNotifications();
         }, 500);
-    });
+    };
+
+    socket.on('notification', handleNewNotification);
+    socket.on('request_update', handleRequestUpdate);
 
     return () => {
+        // FIX: Pass explicit handler references to prevent removing
+        // handlers from other components (e.g., SocketContext toast handler)
         socket.off('notification', handleNewNotification);
-        socket.off('request_update');
+        socket.off('request_update', handleRequestUpdate);
     };
   }, [socket]);
 

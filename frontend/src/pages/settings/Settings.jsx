@@ -56,6 +56,8 @@ const Settings = () => {
     city: "",
     state: "",
     zipCode: "",
+    latitude: 0,
+    longitude: 0,
 
     // Donor Specific
     bloodGroup: "",
@@ -81,6 +83,9 @@ const Settings = () => {
     representativeName: "",
     licenseNumber: ""
   });
+
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+
 
   // Load Data
   useEffect(() => {
@@ -130,6 +135,55 @@ const Settings = () => {
     }));
   };
 
+  // Detect user's current location using browser geolocation
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser.");
+      return;
+    }
+    setIsDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          // Use backend proxy for reverse geocoding
+          const res = await api.get('/search/reverse', {
+            params: { lat: latitude, lon: longitude }
+          });
+          const data = res.data;
+          const address = data.address;
+
+          setFormData((prev) => ({
+            ...prev,
+            city: address?.city || address?.town || address?.village || prev.city,
+            state: address?.state || prev.state,
+            zipCode: address?.postcode || prev.zipCode,
+            address: address?.road ? `${address.road}, ${address.suburb || ''}` : prev.address,
+            latitude: latitude,
+            longitude: longitude
+          }));
+          toast.success("Location detected!");
+        } catch (error) {
+          // If backend proxy fails, still save the raw coordinates
+          const { latitude, longitude } = position.coords;
+          setFormData((prev) => ({
+            ...prev,
+            latitude: latitude,
+            longitude: longitude
+          }));
+          toast.success("Coordinates captured! Please enter address manually.");
+        } finally {
+          setIsDetectingLocation(false);
+        }
+      },
+      (error) => {
+        toast.error("Permission denied or location unavailable.");
+        setIsDetectingLocation(false);
+      }
+    );
+  };
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -148,9 +202,14 @@ const Settings = () => {
           address: formData.address,
           city: formData.city,
           state: formData.state,
-          zipCode: formData.zipCode
+          zipCode: formData.zipCode,
+          // Send coordinates if detected
+          coordinates: (formData.latitude && formData.longitude && formData.latitude !== 0)
+            ? { lat: formData.latitude, lng: formData.longitude }
+            : undefined
         }
       };
+
 
       if (dbUser.role === 'donor') {
         payload.donorData = {
@@ -447,6 +506,24 @@ const Settings = () => {
                  <InputGroup label="City" name="city" value={formData.city} onChange={handleChange} />
                  <InputGroup label="State" name="state" value={formData.state} onChange={handleChange} />
                  <InputGroup label="Zip Code" name="zipCode" value={formData.zipCode} onChange={handleChange} icon={<MapPin size={14}/>} />
+                 
+                 {/* Detect Location Button */}
+                 <div className="md:col-span-2">
+                   <button
+                     type="button"
+                     onClick={detectLocation}
+                     disabled={isDetectingLocation}
+                     className="w-full py-3 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 rounded-xl font-semibold border border-blue-100 dark:border-blue-900/30 flex items-center justify-center gap-2 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+                   >
+                     {isDetectingLocation ? (
+                       <Loader2 className="animate-spin" size={18} />
+                     ) : (
+                       <MapPin size={18} />
+                     )}
+                     {isDetectingLocation ? "Detecting..." : "Use Current Location"}
+                   </button>
+                 </div>
+
                  
                  {/* DEBUG: Coordinates Display */}
                  <div className="md:col-span-2 space-y-2 opacity-75">

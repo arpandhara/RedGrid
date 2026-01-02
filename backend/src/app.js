@@ -20,18 +20,32 @@ import env from "./config/env.js"; // Env Validation
 
 const app = express();
 
+// Security: Trust Proxy (Required for Render/Heroku/Vercel)
+app.set('trust proxy', 1);
+
+// Security: Strict CORS
 // Security: Strict CORS
 app.use(cors({
-  origin: env.CLIENT_URL,
+  origin: (origin, callback) => {
+    // DEBUG: Allow all origins
+    callback(null, true);
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true
 }));
+
 
 app.use(
   "/api/webhooks",
   express.raw({ type: "application/json" }),
   webhookRoutes
 );
+
+// Health Check / Root Route
+app.get('/', (req, res) => {
+  res.status(200).send('RedGrid API is running');
+});
+
 
 // Standard middleware
 app.use(express.json());
@@ -77,8 +91,16 @@ app.use('/api/donors', donorRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/search', searchRoutes); // New Mount
 
+// --- 404 Handler ---
+app.use((req, res, next) => {
+  const error = new Error(`Not Found - ${req.originalUrl}`);
+  error.statusCode = 404;
+  next(error);
+});
+
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
+
   console.error("🔥 Global Error Details:", err);
 
   // Default to 500 Server Error

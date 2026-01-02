@@ -97,7 +97,15 @@ export const onboardUser = asyncHandler(async (req, res) => {
       }
     }
 
+    // CRITICAL: If we STILL don't have coordinates, ensure 'type' is not set
+    // This prevents MongoDB 2dsphere index errors
+    if (!updateData.location.coordinates) {
+      delete updateData.location.type;
+      delete updateData.location.coordinates; // Redundant but explicit
+    }
+
   }
+
   // ====================================================
 
   // Attach Role-Specific Data to the correct Sub-Schema
@@ -120,7 +128,13 @@ export const onboardUser = asyncHandler(async (req, res) => {
     };
   }
 
+  // Log only in dev/test to avoid clutter
+  if (process.env.NODE_ENV !== 'production') {
+    console.log("Onboarding Update Payload:", JSON.stringify(updateData, null, 2));
+  }
+
   // Update the User in MongoDB
+
   const user = await User.findOneAndUpdate(
     { clerkId: userId },
     updateData,

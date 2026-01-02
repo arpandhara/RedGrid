@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
+import api from "../../api/axios";
+
 
 const OnboardingWizard = () => {
   const { user } = useUser();
@@ -97,10 +99,12 @@ const OnboardingWizard = () => {
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          const res = await axios.get(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          const address = res.data.address;
+          // Use Backend Proxy to avoid CORS/User-Agent issues with Nominatim
+          const res = await api.get('/search/reverse', {
+            params: { lat: latitude, lon: longitude }
+          });
+          const data = res.data;
+          const address = data.address;
 
           setFormData((prev) => ({
             ...prev,
@@ -358,7 +362,9 @@ const OnboardingWizard = () => {
                         onChange={handleChange}
                         options={["male", "female", "other"]}
                       />
+
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <FloatingInput label="Date of Birth" type="date" name="dob" value={formData.dob} onChange={handleChange} />
                       <FloatingInput label="Weight (kg)" type="number" name="weight" value={formData.weight} onChange={handleChange} />
@@ -456,6 +462,7 @@ const OnboardingWizard = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <FloatingInput label="Registration / GST No." name="registrationNumber" value={formData.registrationNumber} onChange={handleChange} />
                       <SelectInput label="Hospital Type" name="type" value={formData.type} onChange={handleChange} options={["government", "private", "ngo"]} />
+
                     </div>
                     <div className="space-y-2 pt-2">
                       <label className="text-xs font-bold uppercase text-zinc-500 ml-1">Upload Legal Proof (License / GST Cert)</label>

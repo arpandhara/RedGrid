@@ -15,7 +15,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const checkData = async () => {
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
+        await mongoose.connect(process.env.MONGO_URI);
         console.log("Connected to MongoDB");
 
         const orgs = await User.find({ role: 'organization' });

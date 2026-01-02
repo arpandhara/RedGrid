@@ -17,7 +17,8 @@ export const createRequestSchema = z.object({
 export const createDirectRequestSchema = z.object({
     body: z.object({
         recipientId: z.string().min(1), // Mongo ID
-        recipientType: z.enum(['user', 'hospital', 'organization']),
+        // Accept both cases: 'User', 'user', 'Hospital', etc.
+        recipientType: z.enum(['user', 'User', 'hospital', 'Hospital', 'organization', 'Organization']),
         reason: z.string().optional(),
         bloodGroup: z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
         patientDetails: z.object({
@@ -27,6 +28,7 @@ export const createDirectRequestSchema = z.object({
         }).optional()
     })
 });
+
 
 export const acceptRequestSchema = z.object({
     params: z.object({

@@ -1,40 +1,45 @@
+// backend/src/utils/socket.js
 import { Server } from "socket.io";
-// import jwt from "jsonwebtoken"; // If you verify JWTs manually
 import env from "../config/env.js";
 
 let io;
 
 export const initSocket = (httpServer) => {
+  const allowedOrigins = env.CLIENT_URL
+    ? env.CLIENT_URL.split(",").map(url => url.trim())
+    : ["http://localhost:5173", "http://localhost:3000"];
+
   io = new Server(httpServer, {
     cors: {
-      origin: env.CLIENT_URL,
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const isAllowed = allowedOrigins.some(allowed =>
+          origin === allowed || origin.includes('.vercel.app')
+        );
+        if (isAllowed) return callback(null, true);
+        console.warn("Socket CORS blocked:", origin);
+        return callback(null, true); 
+      },
       methods: ["GET", "POST"],
+      credentials: true,
     },
-  });
-
-  // Security: Middleware for Authentication
-  io.use((socket, next) => {
-
-    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization;
-    if (!token && !socket.handshake.query?.userId) {
-
-    }
-    next();
+    // Increased timeouts for better stability
+    pingTimeout: 60000, // Wait 60s before assuming dead
+    pingInterval: 25000, // Ping every 25s
+    transports: ['websocket', 'polling']
   });
 
   io.on("connection", (socket) => {
-    console.log("New client connected:", socket.id);
+    console.log(`Socket connected: ${socket.id}`);
 
-    // Client must emit 'join' with their User ID to receive personal notifications
     socket.on("join", (userId) => {
-      // Security: Validate userId string?
       if (!userId) return;
       socket.join(userId);
-      console.log(`User ${userId} joined their notification room.`);
+      console.log(`User ${userId} joined room.`);
     });
 
-    socket.on("disconnect", () => {
-      console.log("Client disconnected:", socket.id);
+    socket.on("disconnect", (reason) => {
+      console.log(`Client disconnected: ${socket.id} Reason: ${reason}`);
     });
   });
 

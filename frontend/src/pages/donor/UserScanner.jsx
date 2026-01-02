@@ -43,33 +43,68 @@ const UserScanner = () => {
   const handleVerify = async (textInfo) => {
     setVerifying(true);
     try {
-        const payload = JSON.parse(textInfo);
+        let payload;
+        try {
+            payload = JSON.parse(textInfo);
+        } catch (parseError) {
+            throw new Error("Invalid QR: Not a valid JSON format");
+        }
         
-        // Call Backend to Verify
-        const res = await api.post('/donations/verify', { 
-            donorId: payload.donorId, // From QR
-            requestId: payload.requestId, // From QR (Critical for P2P link)
-            timestamp: payload.timestamp 
-        });
-
-        setVerificationData(res.data.data);
-        toast.success("Donation Verified! Thank you.");
+        // Determine type: explicit or inferred from structure
+        let qrType = payload.type;
+        
+        // Legacy support: Infer type from payload structure
+        if (!qrType) {
+            if (payload.donorId && payload.requestId) {
+                qrType = 'donation_ticket';
+            } else if (payload.donorId) {
+                qrType = 'digital_id';
+            }
+        }
+        
+        // Handle different QR types
+        if (qrType === 'digital_id') {
+            // Digital ID Card - Just verify donor exists
+            const res = await api.get(`/users/${payload.donorId}`);
+            setVerificationData({
+                donorName: `${res.data.data.firstName} ${res.data.data.lastName}`,
+                bloodGroup: res.data.data.donorProfile?.bloodGroup,
+                verified: true,
+                type: 'identity'
+            });
+            toast.success("Donor Identity Verified!");
+        } else if (qrType === 'donation_ticket') {
+            // Donation Ticket - Full donation verification
+            const res = await api.post('/donations/verify', { 
+                donorId: payload.donorId,
+                requestId: payload.requestId,
+                timestamp: payload.timestamp 
+            });
+            setVerificationData({
+                ...res.data.data,
+                type: 'donation'
+            });
+            toast.success("Donation Verified! Thank you.");
+        } else {
+            console.error("Unknown QR payload:", payload);
+            throw new Error("Unrecognized QR Code. Please scan a valid Donor ID or Donation Ticket.");
+        }
 
     } catch (error) {
         console.error(error);
-        const msg = error.response?.data?.message || "Verification Failed";
+        const msg = error.response?.data?.message || error.message || "Verification Failed";
         toast.error(msg);
         
-        // If permission error, show clear message
         if (error.response?.status === 403) {
-             setScanResult('error'); // Block re-scan momentarily or show error UI
+             setScanResult('error');
         } else {
-             setScanResult(null); // Reset to try again? 
+             setScanResult(null);
         }
     } finally {
         setVerifying(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-black text-white p-4 font-sans flex flex-col items-center justify-center">

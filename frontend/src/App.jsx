@@ -209,20 +209,25 @@ function App() {
   );
 }
 
+import ErrorBoundary from "./components/common/ErrorBoundary";
+
 const AppWrapper = () => (
-  <ThemeProvider>
-    <Toaster
-      position="top-right"
-      toastOptions={{
-        className: "bg-zinc-900 text-white border border-zinc-800",
-        style: { borderRadius: "10px", background: "#18181b", color: "#fff" },
-      }}
-      containerStyle={{
-        zIndex: 99999,
-      }}
-    />
-    <App />
-  </ThemeProvider>
+  <ErrorBoundary>
+    <ThemeProvider>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          className: "bg-zinc-900 text-white border border-zinc-800",
+          style: { borderRadius: "10px", background: "#18181b", color: "#fff" },
+        }}
+        containerStyle={{
+          zIndex: 99999,
+        }}
+      />
+      <App />
+    </ThemeProvider>
+  </ErrorBoundary>
 );
 
 export default AppWrapper;
+
