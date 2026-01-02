@@ -30,11 +30,13 @@ const RequestStatusBadge = ({ status }) => {
 };
 
 import useAuthStore from '../../store/useAuthStore'; // Import Auth Store for ID check
+import { useSocket } from '../../context/SocketContext'; // Import Socket for real-time
 
 // ... existing imports ...
 
 const ManageRequests = () => {
     const { user } = useAuthStore(); // Get current user
+    const { socket } = useSocket(); // Get socket for real-time updates
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
@@ -89,6 +91,30 @@ const ManageRequests = () => {
     useEffect(() => {
         fetchRequests();
     }, [filter]);
+
+    // REAL-TIME SOCKET LISTENER for status updates
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleStatusUpdate = (data) => {
+            console.log("Socket: Status update received, refreshing requests...", data);
+            // Delay slightly to ensure DB consistency
+            setTimeout(() => {
+                fetchRequests();
+            }, 500);
+        };
+
+        // Listen for notification events (includes status_update type)
+        socket.on('notification', handleStatusUpdate);
+        // Listen for global request updates
+        socket.on('request_update', handleStatusUpdate);
+
+        return () => {
+            // Clean up with explicit handler references
+            socket.off('notification', handleStatusUpdate);
+            socket.off('request_update', handleStatusUpdate);
+        };
+    }, [socket, filter]); // Include filter to re-subscribe if filter changes
 
     const handleCancel = async (id) => {
         if (!window.confirm("Are you sure you want to cancel this request?")) return;
