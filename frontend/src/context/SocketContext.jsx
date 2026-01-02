@@ -19,9 +19,7 @@ export const SocketProvider = ({ children }) => {
 
   const markRead = () => setUnreadCount(0);
 
-  // Toast display helper
   const showNotificationToast = (data) => {
-    // FORCE UNIQUE ID: Append timestamp to ensure every new event is shown
     const toastId = `notification-${data.requestId || 'gen'}-${Date.now()}`;
     
     toast((t) => (
@@ -46,7 +44,7 @@ export const SocketProvider = ({ children }) => {
       </div>
     ), {
       id: toastId,
-      duration: 8000, 
+      duration: 6000, 
       style: {
         background: '#18181b',
         border: '1px solid #27272a',
@@ -60,9 +58,9 @@ export const SocketProvider = ({ children }) => {
     if (user && user._id) {
       const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api\/?$/, "");
 
-      console.log("Initializing socket connection to:", baseUrl, "for user:", user._id);
+      console.log("Initializing socket connection to:", baseUrl);
 
-      // Helper: Sync unread count (Runs on Load & Reconnect)
+      // 1. Sync Unread Count (Initial & Reconnect)
       const syncNotifications = async () => {
         try {
           const res = await api.get('/notifications/unread-count');
@@ -74,90 +72,68 @@ export const SocketProvider = ({ children }) => {
         }
       };
 
-      // Initial Sync
       syncNotifications();
 
-      // Create socket with aggressive keep-alive settings
+      // 2. Initialize Socket with Stable Settings
       const newSocket = io(baseUrl, {
-        transports: ['websocket', 'polling'],
+        transports: ['websocket'], // Force WebSocket (more stable than polling)
         reconnection: true,
         reconnectionAttempts: Infinity,
-        reconnectionDelay: 500,
-        reconnectionDelayMax: 3000,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
         timeout: 20000,
-        forceNew: false,
         autoConnect: true,
       });
 
       socketRef.current = newSocket;
 
-      // 1. Connection established
+      // --- EVENT LISTENERS ---
+
       newSocket.on('connect', () => {
         console.log("✅ Socket Connected:", newSocket.id);
+        // Join the user's personal room immediately
         newSocket.emit('join', user._id);
-        // FIX: Re-sync immediately on connect to catch missed updates
+        syncNotifications(); 
+      });
+
+      newSocket.on('reconnect', (attempt) => {
+        console.log(`🔄 Socket reconnected after attempt ${attempt}`);
+        newSocket.emit('join', user._id);
         syncNotifications();
       });
 
-      // 2. Socket.IO manager level reconnect
-      newSocket.io.on('reconnect', (attempt) => {
-        console.log(`🔄 Socket.IO Manager reconnected after ${attempt} attempts`);
-        newSocket.emit('join', user._id);
-        syncNotifications();
-      });
-
-      // 3. Socket level reconnect
-      newSocket.on('reconnect', () => {
-        console.log("🔄 Socket reconnected, rejoining room:", user._id);
-        newSocket.emit('join', user._id);
-        syncNotifications();
+      newSocket.on('disconnect', (reason) => {
+        console.warn("⚠️ Socket Disconnected:", reason);
+        if (reason === 'io server disconnect') {
+          // Server booted us, try to reconnect manually
+          newSocket.connect();
+        }
       });
 
       newSocket.on('connect_error', (err) => {
         console.error("❌ Socket Connection Error:", err.message);
       });
 
-      newSocket.on('disconnect', (reason) => {
-        console.warn("⚠️ Socket Disconnected:", reason);
-        if (reason === 'io server disconnect') {
-          newSocket.connect();
-        }
-      });
-
-      // 4. MAIN: Listen for notifications
+      // --- NOTIFICATION HANDLER ---
       newSocket.on('notification', (data) => {
-        const receivedTime = new Date().toISOString();
-        console.log(`🔔 [${receivedTime}] New Notification Received:`, data);
-        
-        // Update state
+        console.log("🔔 Notification Received:", data);
         setUnreadCount(prev => prev + 1);
         showNotificationToast(data);
       });
 
-      // 5. Global updates (e.g. Feed refreshes)
       newSocket.on('request_update', (data) => {
-        console.log("📡 Global request update:", data);
+        console.log("📡 Request Update Broadcast:", data);
       });
-
-      // 6. HEARTBEAT: Re-join room every 30 seconds
-      // Ensures the server knows we are still active even if no traffic flows
-      const heartbeatInterval = setInterval(() => {
-        if (newSocket.connected) {
-           newSocket.emit('join', user._id);
-        }
-      }, 30000);
 
       setSocket(newSocket);
 
-      // Cleanup
       return () => {
-        console.log("Disconnecting socket...");
-        clearInterval(heartbeatInterval);
+        console.log("Cleaning up socket...");
         newSocket.disconnect();
         socketRef.current = null;
       };
     }
-  }, [user?._id]);
+  }, [user?._id]); // Only re-run if USER changes, not on every render
 
   return (
     <SocketContext.Provider value={{ socket, unreadCount, markRead }}>
