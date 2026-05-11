@@ -48,7 +48,7 @@ const userSchema = new mongoose.Schema({
 // SPARSE: Only indexes documents where 'location' field exists
 userSchema.index(
   { "location": "2dsphere" },
-  { sparse: true }
+  { sparse: true, name: "location_2dsphere_sparse" }
 );
 
 // This index handles the "Time Bomb" feature for temporary events

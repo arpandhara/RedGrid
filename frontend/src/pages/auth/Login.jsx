@@ -282,6 +282,8 @@ const Login = () => {
               </div>
             )}
 
+            <div id="clerk-captcha"></div>
+
             <button
               type="submit"
               disabled={isLoading}

@@ -69,7 +69,7 @@ const limiter = rateLimit({
 // Security: Stricter Rate Limiting (Auth)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20, // 20 attempts per 15 mins
+  max: process.env.NODE_ENV !== 'production' ? 1000 : 20, // 20 attempts per 15 mins
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many login attempts, please try again later." }

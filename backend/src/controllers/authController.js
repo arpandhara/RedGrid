@@ -142,9 +142,7 @@ export const onboardUser = asyncHandler(async (req, res) => {
   );
 
   if (!user) {
-    // With asyncHandler, throwing error goes to global handler
-    res.status(404);
-    throw new Error('User not found');
+    return res.status(404).json({ success: false, message: 'User not found' });
   }
 
   res.status(200).json({ success: true, data: user });
@@ -158,8 +156,7 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({ clerkId: userId });
 
   if (!user) {
-    res.status(404);
-    throw new Error('User not found');
+    return res.status(404).json({ success: false, message: 'User not found' });
   }
 
   res.status(200).json({ success: true, data: user });
@@ -170,8 +167,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email });
   if (!user) {
-    res.status(404);
-    throw new Error('User not found');
+    return res.status(404).json({ success: false, message: 'User not found' });
   }
 
   // Generate 6-digit OTP (Secure)
@@ -186,8 +182,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   const emailSent = await sendVerificationEmail(user.email, otp);
 
   if (!emailSent) {
-    res.status(500);
-    throw new Error('Error sending email');
+    return res.status(500).json({ success: false, message: 'Error sending email. Please check your email configuration.' });
   }
 
   res.status(200).json({ success: true, message: 'Verification code sent to email' });
@@ -206,8 +201,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    res.status(400);
-    throw new Error('Invalid or expired code');
+    return res.status(400).json({ success: false, message: 'Invalid or expired code' });
   }
 
   // Update Password in Clerk

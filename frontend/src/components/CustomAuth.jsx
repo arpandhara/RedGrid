@@ -7,11 +7,11 @@ const CustomAuth = ({ mode = 'sign-in' }) => {
   const [activeTab, setActiveTab] = useState('donor'); // 'donor', 'organization', 'hospital'
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  
+
   const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp();
   const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn();
   const navigate = useNavigate();
-
+  
   // Form State
   const [formData, setFormData] = useState({
     email: "",
@@ -140,6 +140,9 @@ const CustomAuth = ({ mode = 'sign-in' }) => {
         </div>
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
+
+        {/* Clerk Bot Protection CAPTCHA widget will be injected here */}
+        <div id="clerk-captcha"></div>
 
         <button 
             type="submit" 

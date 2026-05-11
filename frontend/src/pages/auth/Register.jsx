@@ -318,6 +318,8 @@ const Register = () => {
               </div>
             )}
 
+            <div id="clerk-captcha"></div>
+
             {/* Added 'input-group' to ensure it animates, and specific padding/margin to prevent clipping */}
             <button type="submit" disabled={isLoading} className="input-group w-full py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-500/30 hover:shadow-red-500/50 hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2 group mt-4">
               {isLoading ? <Loader2 className="animate-spin" /> : <> Create Account <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /> </>}
